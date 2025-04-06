@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -52,6 +53,13 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				bella: {
+					purple: '#9b87f5',
+					darkPurple: '#7E69AB',
+					deepPurple: '#6E59A5',
+					lightPurple: '#D6BCFA',
+					accent: '#ea384c'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -84,11 +92,43 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-ring': {
+					'0%': { transform: 'scale(0.8)', opacity: '0' },
+					'50%': { opacity: '0.5' },
+					'100%': { transform: 'scale(1.2)', opacity: '0' }
+				},
+				'avatar-blink': {
+					'0%, 90%, 100%': { transform: 'scaleY(1)' },
+					'95%': { transform: 'scaleY(0.1)' }
+				},
+				'avatar-talk': {
+					'0%, 100%': { transform: 'scaleY(0.8)' },
+					'50%': { transform: 'scaleY(1)' }
+				},
+				'thinking': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-5px)' }
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-10px)' }
+				},
+				'gradient-shift': {
+					'0%': { backgroundPosition: '0% 50%' },
+					'50%': { backgroundPosition: '100% 50%' },
+					'100%': { backgroundPosition: '0% 50%' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-ring': 'pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
+				'avatar-blink': 'avatar-blink 5s infinite',
+				'avatar-talk': 'avatar-talk 0.3s infinite',
+				'thinking': 'thinking 1.5s infinite',
+				'float': 'float 6s ease-in-out infinite',
+				'gradient-shift': 'gradient-shift 10s ease infinite'
 			}
 		}
 	},
