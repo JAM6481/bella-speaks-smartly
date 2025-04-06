@@ -1,12 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, SendHorizontal, X } from 'lucide-react';
+import { Mic, MicOff, SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import SpeechSynthesis from '@/components/SpeechSynthesis';
+import { TTSOptions } from '@/utils/ttsService';
 
 interface Message {
   id: string;
@@ -19,15 +20,18 @@ interface ChatInterfaceProps {
   onSendMessage: (message: string) => void;
   messages: Message[];
   isThinking: boolean;
+  ttsOptions: TTSOptions;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   onSendMessage, 
   messages,
-  isThinking 
+  isThinking,
+  ttsOptions
 }) => {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
@@ -37,6 +41,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   useEffect(() => {
     scrollToBottom();
+    
+    // Auto play the latest message from Bella if it exists
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage && latestMessage.sender === 'bella') {
+      setActiveMessageId(latestMessage.id);
+    }
   }, [messages]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -109,6 +119,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 }`}
               >
                 <p>{message.content}</p>
+                
+                {message.sender === 'bella' && (
+                  <div className="mt-2">
+                    <SpeechSynthesis 
+                      text={message.content}
+                      autoPlay={message.id === activeMessageId}
+                      options={ttsOptions}
+                      onEnd={() => setActiveMessageId(null)}
+                    />
+                  </div>
+                )}
+                
                 <div className="text-xs text-gray-500 mt-1 text-right">
                   {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Volume2, VolumeX, Moon, Sun, Trash2 } from 'lucide-react';
+import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,19 +12,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import BellaAvatar from '@/components/BellaAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import { useBella } from '@/context/BellaContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
+import { availableVoices } from '@/utils/ttsService';
 
 const BellaAssistant: React.FC = () => {
-  const { messages, isThinking, isTalking, mood, sendMessage, clearMessages } = useBella();
+  const { messages, isThinking, isTalking, mood, ttsOptions, sendMessage, clearMessages, updateTTSOptions } = useBella();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState([70]);
+  const [volume, setVolume] = useState([ttsOptions.volume ? ttsOptions.volume * 100 : 70]);
   const { toast } = useToast();
 
   const toggleDarkMode = () => {
@@ -38,6 +54,7 @@ const BellaAssistant: React.FC = () => {
 
   const toggleMute = () => {
     setMuted(!muted);
+    updateTTSOptions({ volume: muted ? volume[0] / 100 : 0 });
     toast({
       title: muted ? "Voice enabled" : "Voice muted",
       description: muted ? "Bella will now speak her responses." : "Bella will no longer speak responses aloud.",
@@ -46,9 +63,34 @@ const BellaAssistant: React.FC = () => {
 
   const handleVolumeChange = (value: number[]) => {
     setVolume(value);
+    updateTTSOptions({ volume: value[0] / 100 });
     toast({
       title: "Volume adjusted",
       description: `Volume set to ${value[0]}%`,
+    });
+  };
+  
+  const handlePitchChange = (value: number[]) => {
+    updateTTSOptions({ pitch: value[0] / 100 * 2 }); // Scale to 0-2 range
+    toast({
+      title: "Pitch adjusted",
+      description: `Pitch set to ${value[0]}%`,
+    });
+  };
+  
+  const handleRateChange = (value: number[]) => {
+    updateTTSOptions({ rate: value[0] / 100 * 2 }); // Scale to 0-2 range
+    toast({
+      title: "Speaking rate adjusted",
+      description: `Speaking rate set to ${value[0]}%`,
+    });
+  };
+  
+  const handleVoiceChange = (value: string) => {
+    updateTTSOptions({ voice: value });
+    toast({
+      title: "Voice changed",
+      description: `Voice set to ${availableVoices.find(v => v.id === value)?.name || value}`,
     });
   };
 
@@ -82,6 +124,89 @@ const BellaAssistant: React.FC = () => {
           >
             {isDarkMode ? <Sun className="h-5 w-5 text-bella-purple" /> : <Moon className="h-5 w-5 text-bella-purple" />}
           </Button>
+          
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="rounded-full hover:bg-bella-purple/10"
+              >
+                <Sliders className="h-5 w-5 text-bella-purple" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Voice Settings</SheetTitle>
+                <SheetDescription>
+                  Customize Bella's voice to your preference
+                </SheetDescription>
+              </SheetHeader>
+              <div className="py-4 space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="voice-select">Voice</Label>
+                  <Select 
+                    onValueChange={handleVoiceChange} 
+                    defaultValue={ttsOptions.voice}
+                  >
+                    <SelectTrigger id="voice-select">
+                      <SelectValue placeholder="Select a voice" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableVoices.map((voice) => (
+                        <SelectItem key={voice.id} value={voice.id}>
+                          {voice.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="pitch-slider">Pitch</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {Math.round((ttsOptions.pitch || 1) * 50)}%
+                    </span>
+                  </div>
+                  <Slider
+                    id="pitch-slider"
+                    defaultValue={[ttsOptions.pitch ? ttsOptions.pitch * 50 : 50]}
+                    onValueChange={handlePitchChange}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="rate-slider">Speaking Rate</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {Math.round((ttsOptions.rate || 1) * 50)}%
+                    </span>
+                  </div>
+                  <Slider
+                    id="rate-slider"
+                    defaultValue={[ttsOptions.rate ? ttsOptions.rate * 50 : 50]}
+                    onValueChange={handleRateChange}
+                    max={100}
+                    step={1}
+                  />
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="destructive" 
+                    onClick={clearMessages}
+                    className="w-full"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear Conversation
+                  </Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -159,6 +284,7 @@ const BellaAssistant: React.FC = () => {
             onSendMessage={sendMessage} 
             messages={messages}
             isThinking={isThinking}
+            ttsOptions={ttsOptions}
           />
         </motion.div>
       </main>

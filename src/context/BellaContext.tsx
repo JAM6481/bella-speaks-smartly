@@ -1,13 +1,15 @@
-
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/components/ui/use-toast';
+import { analyzeIntent, IntentResult } from '@/utils/intentService';
+import { TTSOptions } from '@/utils/ttsService';
 
 interface Message {
   id: string;
   content: string;
   sender: 'user' | 'bella';
   timestamp: Date;
+  intentResult?: IntentResult;
 }
 
 interface BellaContextType {
@@ -15,8 +17,10 @@ interface BellaContextType {
   isThinking: boolean;
   isTalking: boolean;
   mood: 'happy' | 'curious' | 'thinking' | 'neutral';
+  ttsOptions: TTSOptions;
   sendMessage: (content: string) => void;
   clearMessages: () => void;
+  updateTTSOptions: (options: Partial<TTSOptions>) => void;
 }
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
@@ -35,30 +39,55 @@ const getRandomResponse = () => {
   return responses[Math.floor(Math.random() * responses.length)];
 };
 
-const weatherKeywords = ['weather', 'temperature', 'forecast', 'rain', 'sunny'];
-const reminderKeywords = ['remind', 'reminder', 'schedule', 'appointment', 'calendar'];
-const searchKeywords = ['search', 'find', 'look up', 'google', 'information'];
-
-const getContextualResponse = (message: string) => {
-  const lowerMessage = message.toLowerCase();
+// Intent-based responses
+const getIntentBasedResponse = (intentResult: IntentResult): string => {
+  const { topIntent, entities } = intentResult;
   
-  if (weatherKeywords.some(keyword => lowerMessage.includes(keyword))) {
-    return "It's currently 72°F and sunny in your location. The forecast for today shows clear skies with a high of 78°F. Looks like perfect weather for a walk!";
+  switch (topIntent) {
+    case 'greeting':
+      return "Hello there! Bella at your service. Ready to make your day a little easier and perhaps a bit more entertaining.";
+    
+    case 'weather':
+      return "It's currently 72°F and sunny in your location. The forecast for today shows clear skies with a high of 78°F. Looks like perfect weather for a walk!";
+    
+    case 'reminder':
+      let reminderResponse = "I've set a reminder for you.";
+      
+      // Check for time/date entities
+      const timeEntity = entities.find(e => e.entity === 'time');
+      const dateEntity = entities.find(e => e.entity === 'date');
+      
+      if (timeEntity) {
+        reminderResponse += ` I'll remind you at ${timeEntity.value}.`;
+      }
+      
+      if (dateEntity) {
+        reminderResponse += ` The reminder is set for ${dateEntity.value}.`;
+      }
+      
+      return reminderResponse + " Is there anything else you'd like me to remind you about?";
+    
+    case 'search':
+      return "I've found some information that might be helpful. Would you like me to summarize the results or would you prefer more detailed information?";
+    
+    case 'help':
+      return "I can help with weather updates, setting reminders, searching for information, telling jokes, and more. Just let me know what you need!";
+    
+    case 'joke':
+      const jokes = [
+        "Why don't scientists trust atoms? Because they make up everything!",
+        "Why did the scarecrow win an award? Because he was outstanding in his field!",
+        "What do you call fake spaghetti? An impasta!",
+        "How does a penguin build its house? Igloos it together!"
+      ];
+      return jokes[Math.floor(Math.random() * jokes.length)];
+    
+    case 'farewell':
+      return "Goodbye! Feel free to chat with me anytime you need assistance.";
+    
+    default:
+      return getRandomResponse();
   }
-  
-  if (reminderKeywords.some(keyword => lowerMessage.includes(keyword))) {
-    return "I've set a reminder for you. I'll make sure to notify you at the specified time. Is there anything else you'd like me to remind you about?";
-  }
-  
-  if (searchKeywords.some(keyword => lowerMessage.includes(keyword))) {
-    return "I've found some information that might be helpful. Would you like me to summarize the results or would you prefer more detailed information?";
-  }
-  
-  if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-    return "Hello there! Bella at your service. Ready to make your day a little easier and perhaps a bit more entertaining.";
-  }
-  
-  return getRandomResponse();
 };
 
 export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -73,32 +102,53 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isThinking, setIsThinking] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
   const [mood, setMood] = useState<'happy' | 'curious' | 'thinking' | 'neutral'>('neutral');
+  const [ttsOptions, setTTSOptions] = useState<TTSOptions>({
+    voice: 'bella_default',
+    pitch: 1.0,
+    rate: 1.0,
+    volume: 0.7,
+  });
   const { toast } = useToast();
   
-  const determineMood = (message: string) => {
-    const lowerMessage = message.toLowerCase();
+  const determineMood = (intentResult: IntentResult): 'happy' | 'curious' | 'thinking' | 'neutral' => {
+    const { topIntent, text } = intentResult;
     
-    if (lowerMessage.includes('?')) return 'curious';
-    if (lowerMessage.includes('weather') || lowerMessage.includes('nice') || lowerMessage.includes('good')) return 'happy';
-    if (lowerMessage.includes('think') || lowerMessage.includes('how') || lowerMessage.includes('why')) return 'thinking';
-    
-    return 'neutral';
+    // Set mood based on intent
+    switch (topIntent) {
+      case 'greeting':
+      case 'joke':
+        return 'happy';
+      case 'help':
+      case 'search':
+        return 'thinking';
+      default:
+        // For other intents, check for question marks or keywords
+        if (text.includes('?')) return 'curious';
+        if (text.toLowerCase().includes('how') || 
+            text.toLowerCase().includes('why') || 
+            text.toLowerCase().includes('what')) return 'thinking';
+        return 'neutral';
+    }
   };
   
   const sendMessage = useCallback((content: string) => {
+    // Process the message with intent recognition
+    const intentResult = analyzeIntent(content);
+    
     // Add user message
     const newUserMessage: Message = {
       id: uuidv4(),
       content,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      intentResult
     };
     
     setMessages(prev => [...prev, newUserMessage]);
     setIsThinking(true);
     
-    // Determine mood based on message content
-    const newMood = determineMood(content);
+    // Determine mood based on intent analysis
+    const newMood = determineMood(intentResult);
     setMood(newMood);
     
     // Simulate processing time (would connect to backend in real implementation)
@@ -108,8 +158,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsThinking(false);
       setIsTalking(true);
       
-      // Get a response based on the message content
-      const responseContent = getContextualResponse(content);
+      // Get a response based on the intent
+      const responseContent = getIntentBasedResponse(intentResult);
       
       // Add Bella's response
       const newBellaMessage: Message = {
@@ -145,14 +195,23 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [toast]);
   
+  const updateTTSOptions = useCallback((options: Partial<TTSOptions>) => {
+    setTTSOptions(prev => ({
+      ...prev,
+      ...options
+    }));
+  }, []);
+  
   return (
     <BellaContext.Provider value={{
       messages,
       isThinking,
       isTalking,
       mood,
+      ttsOptions,
       sendMessage,
-      clearMessages
+      clearMessages,
+      updateTTSOptions
     }}>
       {children}
     </BellaContext.Provider>
