@@ -31,9 +31,88 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isContinuousListening, setIsContinuousListening] = useState(false);
   const [activeMessageId, setActiveMessageId] = useState<string | null>(null);
+  const [recognizedText, setRecognizedText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  
+  // SpeechRecognition setup
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  
+  useEffect(() => {
+    // Initialize speech recognition
+    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join('');
+        
+        setRecognizedText(transcript);
+        
+        // If we have a final result in continuous listening mode, send it
+        const isFinalResult = event.results[event.results.length - 1].isFinal;
+        if (isContinuousListening && isFinalResult && transcript.trim()) {
+          // Auto-send message after a short pause to allow for natural breaks
+          const finalTranscript = transcript.trim();
+          setTimeout(() => {
+            onSendMessage(finalTranscript);
+            setRecognizedText('');
+          }, 1000);
+        }
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setIsRecording(false);
+        toast({
+          title: "Voice recognition error",
+          description: `Error: ${event.error}. Please try again.`,
+          variant: "destructive"
+        });
+      };
+      
+      recognitionRef.current.onend = () => {
+        // If still recording when recognition ends, restart it
+        if (isRecording && !isContinuousListening) {
+          const finalText = recognizedText.trim();
+          if (finalText) {
+            onSendMessage(finalText);
+            setRecognizedText('');
+          }
+          setIsRecording(false);
+        } else if (isRecording && isContinuousListening) {
+          // Restart for continuous mode
+          recognitionRef.current?.start();
+        }
+      };
+    } else {
+      toast({
+        title: "Speech recognition not supported",
+        description: "Your browser doesn't support speech recognition.",
+        variant: "destructive"
+      });
+    }
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        if (isRecording) {
+          recognitionRef.current.stop();
+        }
+      }
+    };
+  }, [isRecording, isContinuousListening]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,31 +137,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   };
 
   const toggleRecording = () => {
-    // In a real implementation, this would connect to the DeepSpeech API
+    if (!recognitionRef.current) {
+      toast({
+        title: "Speech recognition not available",
+        description: "Your browser doesn't support speech recognition.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!isRecording) {
       setIsRecording(true);
-      toast({
-        title: "Listening...",
-        description: "Speak clearly to interact with Bella.",
-      });
+      setRecognizedText('');
+      recognitionRef.current.start();
       
-      // Simulating a voice recording - in a real app, this would use WebSpeech API or similar
-      setTimeout(() => {
-        setIsRecording(false);
-        // Simulate getting text from speech
-        onSendMessage("What's the weather today?");
-        toast({
-          title: "Voice captured",
-          description: "Your voice command has been processed.",
-        });
-      }, 3000);
+      toast({
+        title: isContinuousListening ? "Continuous listening mode" : "Listening...",
+        description: isContinuousListening 
+          ? "Bella will listen and respond continuously. Click again to stop." 
+          : "Speak clearly to interact with Bella.",
+      });
     } else {
       setIsRecording(false);
+      recognitionRef.current.stop();
+      
       toast({
         title: "Recording stopped",
         description: "Bella is no longer listening.",
       });
     }
+  };
+
+  const toggleContinuousListening = () => {
+    // If currently recording, stop first
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    }
+    
+    setIsContinuousListening(!isContinuousListening);
+    
+    toast({
+      title: !isContinuousListening ? "Continuous mode enabled" : "Continuous mode disabled",
+      description: !isContinuousListening 
+        ? "Bella will listen and respond continuously when you start recording." 
+        : "Bella will wait for you to finish speaking before processing.",
+    });
   };
 
   return (
@@ -91,15 +191,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className="text-xl font-semibold text-bella-deepPurple dark:text-bella-lightPurple">
           Chat with Bella
         </div>
-        {isRecording && (
-          <div className="flex items-center text-bella-accent animate-pulse">
-            <span className="mr-2 text-sm">Recording</span>
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bella-accent opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-bella-accent"></span>
-            </span>
-          </div>
-        )}
+        
+        <div className="flex items-center space-x-2">
+          {isRecording && (
+            <div className="flex items-center text-bella-accent">
+              <div className="relative flex h-3 w-3 mr-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-bella-accent opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-bella-accent"></span>
+              </div>
+              <span className="text-xs">Recording</span>
+            </div>
+          )}
+          
+          <Button
+            type="button"
+            size="sm"
+            variant={isContinuousListening ? "default" : "outline"}
+            onClick={toggleContinuousListening}
+            className={`text-xs px-2 rounded-full ${
+              isContinuousListening 
+                ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+                : 'border-amber-500/50 text-amber-700 hover:text-amber-800'
+            }`}
+          >
+            {isContinuousListening ? "Continuous" : "Single Mode"}
+          </Button>
+        </div>
       </div>
       
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -153,6 +270,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             </motion.div>
           )}
+          
+          {isRecording && recognizedText && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-end"
+            >
+              <div className="user-message max-w-[80%] opacity-70">
+                <p>{recognizedText}</p>
+                <div className="text-xs text-gray-500 mt-1">Listening...</div>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
@@ -162,17 +292,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <Button
             type="button"
             size="icon"
-            variant="outline"
+            variant={isRecording ? "default" : "outline"}
             onClick={toggleRecording}
-            className={`rounded-full ${isRecording ? 'bg-bella-accent text-white border-bella-accent hover:bg-bella-accent/80' : 'text-bella-purple hover:text-bella-deepPurple hover:bg-bella-purple/10'}`}
+            className={`rounded-full relative ${
+              isRecording 
+                ? 'bg-bella-accent text-white border-bella-accent hover:bg-bella-accent/80' 
+                : 'text-bella-purple hover:text-bella-deepPurple hover:bg-bella-purple/10'
+            }`}
           >
-            {isRecording ? <MicOff size={18} /> : <Mic size={18} />}
+            {isRecording ? (
+              <>
+                <MicOff size={18} className="relative z-10" />
+                <div className="absolute inset-0 bg-bella-accent rounded-full animate-pulse opacity-50"></div>
+              </>
+            ) : (
+              <Mic size={18} />
+            )}
           </Button>
           
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
+            placeholder={isRecording ? "Listening..." : "Type a message..."}
             className="rounded-full border-bella-purple/30 focus-visible:ring-bella-purple focus-visible:ring-offset-1"
             disabled={isRecording}
           />

@@ -13,6 +13,7 @@ export const availableVoices = [
   { id: 'bella_professional', name: 'Bella (Professional)', language: 'en-US' },
   { id: 'bella_warm', name: 'Bella (Warm)', language: 'en-US' },
   { id: 'bella_formal', name: 'Bella (Formal)', language: 'en-US' },
+  { id: 'bella_sultry', name: 'Bella (Sultry)', language: 'en-US' },
 ];
 
 export interface TTSOptions {
@@ -35,8 +36,8 @@ export interface TTSResponse {
 // Default options for TTS - updated for young female voice profile
 const defaultOptions: TTSOptions = {
   voice: 'bella_young_female',
-  pitch: 1.2, // Slightly higher pitch for younger female voice
-  rate: 1.0,
+  pitch: 1.3, // Higher pitch for younger, feminine voice
+  rate: 1.1,  // Slightly faster for youthful energy
   volume: 1.0,
 };
 
@@ -77,9 +78,9 @@ export const synthesizeSpeech = async (
     const wordCount = text.split(/\s+/).length;
     const durationInSeconds = (wordCount / wordsPerMinute) * 60;
     
-    // Simulate phoneme data that would be returned by a real TTS service with lip-sync
-    // In a real implementation, this would come from the TTS service
-    const phonemes = simulatePhonemeData(text, durationInSeconds);
+    // Generate phoneme data for lip-sync
+    // In a real implementation, this would come from Rhubarb Lip Sync or similar
+    const phonemes = generatePhonemeData(text, durationInSeconds);
     
     // Use browser's speech synthesis as a placeholder
     window.speechSynthesis.speak(utterance);
@@ -95,39 +96,76 @@ export const synthesizeSpeech = async (
 };
 
 /**
- * Generate simulated phoneme data for lip-sync
- * In a real implementation, this would come from Mozilla TTS or Rhubarb Lip Sync
+ * Generate detailed phoneme data for lip-sync, simulating Rhubarb Lip Sync output
+ * In a real implementation, this would come from Rhubarb Lip Sync
  */
-const simulatePhonemeData = (text: string, duration: number) => {
-  // This is a very simplified simulation
-  // Real phoneme data would be much more precise and based on acoustic analysis
+const generatePhonemeData = (text: string, duration: number) => {
+  // This is a more sophisticated simulation of phoneme data
+  // Real phoneme data would come from Rhubarb Lip Sync or similar tool
+  
+  const phonemeMap = {
+    'A': 'Open mouth (ah)',      // Open mouth
+    'B': 'Slightly open (b/m/p)', // Closed lips with slight pressure, as in 'b', 'm', 'p'
+    'C': 'Wide open (ah/oh)',    // Wide open, as in 'oh'
+    'D': 'Rounded (o/oo)',       // Rounded lips, as in 'oo'
+    'E': 'Smile/ee sound',       // Stretched lips, as in 'ee'
+    'F': 'Touching teeth (f/v)', // Bottom lip touching upper teeth, as in 'f', 'v'
+    'G': 'Back of throat (g/k)', // Closure at back of mouth, as in 'g', 'k'
+    'H': 'Aspirated (h)',        // Slightly open with air flow, as in 'h'
+    'X': 'Mouth closed'          // Neutral, closed mouth
+  };
   
   const words = text.split(/\s+/);
   const phonemes = [];
   let startTime = 0;
   
+  // Estimate average word duration
+  const avgWordDuration = duration / words.length;
+  
+  // Process each word to generate more realistic phoneme timings
   for (const word of words) {
-    // Estimate word duration based on length
-    const wordDuration = (word.length / 5) * 0.3; // rough estimate
+    // Word-specific duration, with slight variance based on length
+    const wordDuration = avgWordDuration * (0.7 + (word.length / 10));
     
-    // Create phonemes for each word
-    const phonemeCount = Math.max(1, Math.min(5, Math.floor(word.length / 2)));
+    // Identify vowels and consonants for better phoneme mapping
+    const letters = word.toLowerCase().split('');
+    const vowels = letters.filter(l => 'aeiou'.includes(l));
+    const consonants = letters.filter(l => !('aeiou'.includes(l)));
+    
+    // Create phoneme segments for this word
+    const phonemeCount = Math.max(2, Math.min(5, vowels.length + Math.floor(consonants.length / 2)));
     const phonemeDuration = wordDuration / phonemeCount;
+    
+    // Start with mouth closed
+    phonemes.push({
+      phoneme: 'X',
+      startTime: Math.max(0, startTime - 0.05),
+      endTime: startTime
+    });
     
     for (let i = 0; i < phonemeCount; i++) {
       const phonemeStartTime = startTime + (i * phonemeDuration);
       const phonemeEndTime = phonemeStartTime + phonemeDuration;
       
-      // Assign a phoneme based on a simplified mapping
-      let phoneme = 'X'; // default closed mouth
+      // Assign phonemes based on letter patterns
+      let phoneme = 'X'; // Default
       
-      // Very simplified phoneme assignment
       if (word.includes('a')) phoneme = 'A';
-      else if (word.includes('e')) phoneme = 'E';
-      else if (word.includes('i')) phoneme = 'C';
-      else if (word.includes('o')) phoneme = 'D';
-      else if (word.includes('u')) phoneme = 'F';
-      else phoneme = 'B';
+      else if (word.includes('e') || word.includes('i')) phoneme = 'E';
+      else if (word.includes('o')) phoneme = 'C';
+      else if (word.includes('u')) phoneme = 'D';
+      else if (word.includes('f') || word.includes('v')) phoneme = 'F';
+      else if (word.includes('g') || word.includes('k')) phoneme = 'G';
+      else if (word.includes('h')) phoneme = 'H';
+      else if (consonants.length > vowels.length) phoneme = 'B';
+      
+      // For transitions, add intermediate phonemes
+      if (i > 0 && i < phonemeCount - 1) {
+        // Mix it up a bit for more natural mouth movement
+        if (Math.random() > 0.7) {
+          phoneme = ['A', 'B', 'C', 'D', 'E'][Math.floor(Math.random() * 5)];
+        }
+      }
       
       phonemes.push({
         phoneme,
@@ -136,7 +174,14 @@ const simulatePhonemeData = (text: string, duration: number) => {
       });
     }
     
-    startTime += wordDuration + 0.1; // Add a small pause between words
+    // End with mouth closed after word
+    phonemes.push({
+      phoneme: 'X',
+      startTime: startTime + wordDuration,
+      endTime: startTime + wordDuration + 0.05
+    });
+    
+    startTime += wordDuration + 0.15; // Add pause between words
   }
   
   return phonemes;
