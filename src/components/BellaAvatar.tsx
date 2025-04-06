@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface BellaAvatarProps {
   isTalking: boolean;
@@ -15,7 +16,7 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
 }) => {
   const [blinking, setBlinking] = useState(false);
 
-  // Random blinking
+  // Random blinking effect
   useEffect(() => {
     const blinkInterval = setInterval(() => {
       setBlinking(true);
@@ -25,23 +26,13 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
     return () => clearInterval(blinkInterval);
   }, []);
 
-  const getEyebrowTransform = () => {
-    switch (mood) {
-      case 'happy':
-        return 'translateY(-2px)';
-      case 'curious':
-        return 'rotate(10deg) translateY(-2px)';
-      case 'thinking':
-        return 'translateY(-4px) rotate(-5deg)';
-      default:
-        return 'translateY(0)';
-    }
-  };
-
-  const getMouthAnimation = () => {
+  // The realistic avatar doesn't have the same mouth and eyebrow animations
+  // Instead, we'll use subtle lighting and scaling effects based on mood and talking state
+  
+  const getAvatarAnimation = () => {
     if (isTalking) {
       return {
-        scaleY: [0.6, 1, 0.6],
+        scale: [1, 1.02, 1],
         transition: {
           repeat: Infinity,
           duration: 0.4,
@@ -52,16 +43,15 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
     switch (mood) {
       case 'happy':
         return {
-          scale: 1.1,
+          scale: 1.02,
         };
       case 'curious':
         return {
-          scaleX: 0.7,
+          rotate: 1,
         };
       case 'thinking':
         return {
-          scaleX: 0.6,
-          x: 10,
+          scale: 0.98,
         };
       default:
         return {
@@ -73,51 +63,30 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
   return (
     <div className="relative flex flex-col items-center justify-center">
       <motion.div 
-        className="relative w-64 h-64 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-bella-purple to-bella-darkPurple shadow-lg animate-float"
+        className="relative w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden shadow-lg animate-float"
+        animate={getAvatarAnimation()}
       >
-        {/* Face Container */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {/* Eyes */}
-          <div className="flex w-full justify-center space-x-12 mb-4">
-            <motion.div 
-              className="w-8 h-6 bg-white dark:bg-gray-200 rounded-full overflow-hidden flex justify-center items-center"
-              style={{ scaleY: blinking ? 0.1 : 1 }}
-            >
-              <div className="w-4 h-4 bg-black rounded-full" />
-            </motion.div>
-            <motion.div 
-              className="w-8 h-6 bg-white dark:bg-gray-200 rounded-full overflow-hidden flex justify-center items-center"
-              style={{ scaleY: blinking ? 0.1 : 1 }}
-            >
-              <div className="w-4 h-4 bg-black rounded-full" />
-            </motion.div>
+        {/* Realistic Avatar */}
+        <div className="w-full h-full rounded-full overflow-hidden border-4 border-bella-purple/30 shadow-[0_0_30px_rgba(155,135,245,0.5)]">
+          {/* This would be replaced with an actual image in a real implementation */}
+          {/* Using a gradient as a placeholder for the realistic avatar */}
+          <div className="w-full h-full bg-gradient-to-b from-[#f5e1d5] via-[#e6c8b4] to-[#d4b3a1] relative">
+            {/* Eyes - only shown during blink animation */}
+            {blinking && (
+              <div className="absolute top-1/3 w-full flex justify-center space-x-16">
+                <div className="w-8 h-1 bg-black rounded-full"></div>
+                <div className="w-8 h-1 bg-black rounded-full"></div>
+              </div>
+            )}
           </div>
-
-          {/* Eyebrows */}
-          <div className="flex w-full justify-center space-x-12 -mt-8 mb-2">
-            <motion.div 
-              className="w-8 h-1.5 bg-gray-800 rounded-full"
-              style={{ transform: getEyebrowTransform() }}
-            />
-            <motion.div 
-              className="w-8 h-1.5 bg-gray-800 rounded-full"
-              style={{ transform: getEyebrowTransform() }}
-            />
-          </div>
-          
-          {/* Mouth */}
-          <motion.div 
-            className="w-16 h-3 bg-gray-800 rounded-full mt-6"
-            animate={getMouthAnimation()}
-          />
         </div>
       </motion.div>
       
       {/* Activation Ring */}
       {isThinking && (
         <div className="absolute inset-0">
-          <div className="absolute inset-0 rounded-full border-4 border-bella-purple opacity-20 animate-pulse-ring"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-bella-purple opacity-10 animate-pulse-ring" style={{ animationDelay: '0.5s' }}></div>
+          <div className="absolute inset-0 rounded-full border-4 border-amber-500 opacity-20 animate-pulse-ring"></div>
+          <div className="absolute inset-0 rounded-full border-4 border-amber-500 opacity-10 animate-pulse-ring" style={{ animationDelay: '0.5s' }}></div>
         </div>
       )}
       
@@ -125,17 +94,17 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
       {isThinking && (
         <div className="flex space-x-2 mt-4">
           <motion.div 
-            className="thinking-dot"
+            className="w-2 h-2 rounded-full bg-amber-500"
             animate={{ y: [0, -10, 0] }}
             transition={{ repeat: Infinity, duration: 1, delay: 0 }}
           />
           <motion.div 
-            className="thinking-dot"
+            className="w-2 h-2 rounded-full bg-amber-500"
             animate={{ y: [0, -10, 0] }}
             transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
           />
           <motion.div 
-            className="thinking-dot"
+            className="w-2 h-2 rounded-full bg-amber-500"
             animate={{ y: [0, -10, 0] }}
             transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
           />

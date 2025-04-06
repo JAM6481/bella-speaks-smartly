@@ -5,8 +5,8 @@
 
 @layer base {
   :root {
-    --background: 260 50% 98%;
-    --foreground: 260 10% 10%;
+    --background: 34 40% 98%;
+    --foreground: 34 10% 10%;
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -14,24 +14,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 260 60% 55%;
-    --primary-foreground: 260 10% 98%;
+    --primary: 34 60% 55%;
+    --primary-foreground: 34 10% 98%;
 
-    --secondary: 260 30% 90%;
+    --secondary: 34 30% 90%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 260 40% 96.1%;
-    --muted-foreground: 260 30% 40%;
+    --muted: 34 40% 96.1%;
+    --muted-foreground: 34 30% 40%;
 
-    --accent: 260 30% 90%;
+    --accent: 34 30% 90%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 260 20% 85%;
-    --input: 260 20% 85%;
-    --ring: 260 60% 55%;
+    --border: 34 20% 85%;
+    --input: 34 20% 85%;
+    --ring: 34 60% 55%;
 
     --radius: 0.5rem;
 
@@ -46,33 +46,33 @@
   }
 
   .dark {
-    --background: 260 30% 10%;
-    --foreground: 260 10% 98%;
+    --background: 34 30% 10%;
+    --foreground: 34 10% 98%;
 
-    --card: 260 30% 15%;
-    --card-foreground: 260 10% 98%;
+    --card: 34 30% 15%;
+    --card-foreground: 34 10% 98%;
 
-    --popover: 260 30% 15%;
-    --popover-foreground: 260 10% 98%;
+    --popover: 34 30% 15%;
+    --popover-foreground: 34 10% 98%;
 
-    --primary: 260 60% 65%;
-    --primary-foreground: 260 10% 10%;
+    --primary: 34 60% 50%;
+    --primary-foreground: 34 10% 10%;
 
-    --secondary: 260 30% 20%;
-    --secondary-foreground: 260 10% 98%;
+    --secondary: 34 30% 20%;
+    --secondary-foreground: 34 10% 98%;
 
-    --muted: 260 30% 20%;
-    --muted-foreground: 260 20% 70%;
+    --muted: 34 30% 20%;
+    --muted-foreground: 34 20% 70%;
 
-    --accent: 260 30% 25%;
-    --accent-foreground: 260 10% 98%;
+    --accent: 34 30% 25%;
+    --accent-foreground: 34 10% 98%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 260 10% 98%;
+    --destructive-foreground: 34 10% 98%;
 
-    --border: 260 30% 25%;
-    --input: 260 30% 25%;
-    --ring: 260 60% 65%;
+    --border: 34 30% 25%;
+    --input: 34 30% 25%;
+    --ring: 34 60% 50%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -97,19 +97,19 @@
 
 @layer components {
   .bella-gradient-bg {
-    @apply bg-gradient-to-br from-bella-purple/20 via-bella-lightPurple/10 to-bella-darkPurple/20 animate-gradient-shift bg-[length:200%_200%];
+    @apply bg-gradient-to-br from-amber-500/20 via-amber-400/10 to-amber-600/20 animate-gradient-shift bg-[length:200%_200%];
   }
   
   .bella-message {
-    @apply relative p-4 rounded-lg shadow-md bg-white dark:bg-bella-deepPurple/20 border border-bella-purple/30;
+    @apply relative p-4 rounded-lg shadow-md bg-white dark:bg-amber-900/20 border border-amber-500/30;
   }
   
   .user-message {
-    @apply relative p-4 rounded-lg shadow-md bg-bella-purple/10 dark:bg-bella-purple/20 border border-bella-purple/30;
+    @apply relative p-4 rounded-lg shadow-md bg-amber-500/10 dark:bg-amber-800/20 border border-amber-500/30;
   }
 
   .thinking-dot {
-    @apply w-2 h-2 rounded-full bg-bella-purple;
+    @apply w-2 h-2 rounded-full bg-amber-500;
   }
   
   @keyframes thinking {
@@ -148,5 +148,36 @@
   
   .animate-gradient-shift {
     animation: gradient-shift 15s ease infinite;
+  }
+
+  /* Realistic avatar enhancements */
+  .realistic-avatar-container {
+    @apply relative overflow-hidden rounded-full;
+    box-shadow: 0 0 30px rgba(255, 191, 0, 0.3);
+  }
+
+  .realistic-avatar-shadow {
+    @apply absolute inset-0;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+  }
+
+  .realistic-avatar-highlight {
+    @apply absolute top-0 left-0 right-0 h-1/3 bg-gradient-to-b from-white/20 to-transparent;
+    border-radius: 50% 50% 0 0;
+  }
+
+  .realistic-avatar-eye {
+    @apply absolute w-6 h-3 bg-amber-800 rounded-full overflow-hidden;
+  }
+
+  .realistic-avatar-eye::before {
+    content: '';
+    @apply absolute w-4 h-4 bg-amber-600 rounded-full top-0 left-1;
+    box-shadow: 0 0 5px rgba(255, 191, 0, 0.8);
+  }
+
+  .realistic-avatar-eye::after {
+    content: '';
+    @apply absolute w-2 h-2 bg-black rounded-full top-0 left-2;
   }
 }

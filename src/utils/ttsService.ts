@@ -9,8 +9,9 @@
 
 // Available voices for the TTS engine
 export const availableVoices = [
-  { id: 'bella_default', name: 'Bella (Default)', language: 'en-US' },
-  { id: 'bella_soft', name: 'Bella (Soft)', language: 'en-US' },
+  { id: 'bella_young_female', name: 'Bella (Young Female)', language: 'en-US' },
+  { id: 'bella_professional', name: 'Bella (Professional)', language: 'en-US' },
+  { id: 'bella_warm', name: 'Bella (Warm)', language: 'en-US' },
   { id: 'bella_formal', name: 'Bella (Formal)', language: 'en-US' },
 ];
 
@@ -26,10 +27,10 @@ export interface TTSResponse {
   duration: number;
 }
 
-// Default options for TTS
+// Default options for TTS - updated for young female voice profile
 const defaultOptions: TTSOptions = {
-  voice: 'bella_default',
-  pitch: 1.0,
+  voice: 'bella_young_female',
+  pitch: 1.2, // Slightly higher pitch for younger female voice
   rate: 1.0,
   volume: 1.0,
 };
@@ -53,6 +54,18 @@ export const synthesizeSpeech = async (
     utterance.rate = options.rate || defaultOptions.rate!;
     utterance.pitch = options.pitch || defaultOptions.pitch!;
     utterance.volume = options.volume || defaultOptions.volume!;
+    
+    // Try to use a female voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const femaleVoice = voices.find(voice => 
+      voice.name.toLowerCase().includes('female') || 
+      voice.name.toLowerCase().includes('woman') ||
+      voice.name.toLowerCase().includes('girl')
+    );
+    
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
+    }
     
     // Calculate estimated duration (very rough estimate)
     const wordsPerMinute = 150;
