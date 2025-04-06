@@ -45,7 +45,7 @@ const getIntentBasedResponse = (intentResult: IntentResult): string => {
   
   switch (topIntent) {
     case 'greeting':
-      return "Hello there! Bella at your service. Ready to make your day a little easier and perhaps a bit more entertaining.";
+      return "Bella at your service. Ready to make your day a little easier and perhaps a bit more entertaining.";
     
     case 'weather':
       return "It's currently 72°F and sunny in your location. The forecast for today shows clear skies with a high of 78°F. Looks like perfect weather for a walk!";
@@ -83,7 +83,7 @@ const getIntentBasedResponse = (intentResult: IntentResult): string => {
       return jokes[Math.floor(Math.random() * jokes.length)];
     
     case 'farewell':
-      return "Goodbye! Feel free to chat with me anytime you need assistance.";
+      return "Goodbye!";
     
     default:
       return getRandomResponse();
@@ -94,7 +94,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [messages, setMessages] = useState<Message[]>([
     {
       id: uuidv4(),
-      content: "Hello! I'm Bella, your personal assistant. How can I help you today?",
+      content: "How can I help?",
       sender: 'bella',
       timestamp: new Date()
     }
@@ -183,7 +183,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMessages([
       {
         id: uuidv4(),
-        content: "Hello! I'm Bella, your personal assistant. How can I help you today?",
+        content: "How can I help?",
         sender: 'bella',
         timestamp: new Date()
       }
