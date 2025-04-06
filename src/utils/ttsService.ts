@@ -25,6 +25,11 @@ export interface TTSOptions {
 export interface TTSResponse {
   audioUrl: string;
   duration: number;
+  phonemes?: Array<{
+    phoneme: string;
+    startTime: number;
+    endTime: number;
+  }>;
 }
 
 // Default options for TTS - updated for young female voice profile
@@ -67,21 +72,74 @@ export const synthesizeSpeech = async (
       utterance.voice = femaleVoice;
     }
     
-    // Calculate estimated duration (very rough estimate)
+    // Calculate estimated duration (rough estimate)
     const wordsPerMinute = 150;
     const wordCount = text.split(/\s+/).length;
     const durationInSeconds = (wordCount / wordsPerMinute) * 60;
+    
+    // Simulate phoneme data that would be returned by a real TTS service with lip-sync
+    // In a real implementation, this would come from the TTS service
+    const phonemes = simulatePhonemeData(text, durationInSeconds);
     
     // Use browser's speech synthesis as a placeholder
     window.speechSynthesis.speak(utterance);
     
     // In the real implementation, we would return an audio URL from the Edge Function
-    // For now, return a simulated response
+    // For now, return a simulated response with phoneme data
     resolve({
       audioUrl: 'simulated-tts-audio.mp3',
       duration: durationInSeconds,
+      phonemes,
     });
   });
+};
+
+/**
+ * Generate simulated phoneme data for lip-sync
+ * In a real implementation, this would come from Mozilla TTS or Rhubarb Lip Sync
+ */
+const simulatePhonemeData = (text: string, duration: number) => {
+  // This is a very simplified simulation
+  // Real phoneme data would be much more precise and based on acoustic analysis
+  
+  const words = text.split(/\s+/);
+  const phonemes = [];
+  let startTime = 0;
+  
+  for (const word of words) {
+    // Estimate word duration based on length
+    const wordDuration = (word.length / 5) * 0.3; // rough estimate
+    
+    // Create phonemes for each word
+    const phonemeCount = Math.max(1, Math.min(5, Math.floor(word.length / 2)));
+    const phonemeDuration = wordDuration / phonemeCount;
+    
+    for (let i = 0; i < phonemeCount; i++) {
+      const phonemeStartTime = startTime + (i * phonemeDuration);
+      const phonemeEndTime = phonemeStartTime + phonemeDuration;
+      
+      // Assign a phoneme based on a simplified mapping
+      let phoneme = 'X'; // default closed mouth
+      
+      // Very simplified phoneme assignment
+      if (word.includes('a')) phoneme = 'A';
+      else if (word.includes('e')) phoneme = 'E';
+      else if (word.includes('i')) phoneme = 'C';
+      else if (word.includes('o')) phoneme = 'D';
+      else if (word.includes('u')) phoneme = 'F';
+      else phoneme = 'B';
+      
+      phonemes.push({
+        phoneme,
+        startTime: phonemeStartTime,
+        endTime: phonemeEndTime
+      });
+    }
+    
+    startTime += wordDuration + 0.1; // Add a small pause between words
+  }
+  
+  return phonemes;
 };
 
 /**
