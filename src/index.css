@@ -5,83 +5,84 @@
 
 @layer base {
   :root {
-    --background: 210 100% 97%;
-    --foreground: 210 10% 10%;
+    /* Updated with more powerful blue theme */
+    --background: 216 100% 99%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 210 10% 98%;
+    --primary: 222 83% 32%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 30% 90%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217 71% 95%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 210 30% 40%;
+    --muted: 213 40% 96%;
+    --muted-foreground: 215 28% 40%;
 
-    --accent: 210 100% 50%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 222 83% 35%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 210 20% 85%;
-    --input: 210 20% 85%;
-    --ring: 210 100% 50%;
+    --border: 214 32% 86%;
+    --input: 214 32% 86%;
+    --ring: 222 83% 32%;
 
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-foreground: 240 5% 26%;
+    --sidebar-primary: 240 6% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 5% 96%;
+    --sidebar-accent-foreground: 240 6% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   .dark {
-    --background: 210 70% 5%;
-    --foreground: 210 10% 98%;
+    --background: 221 40% 7%;
+    --foreground: 213 31% 91%;
 
-    --card: 210 70% 7%;
-    --card-foreground: 210 10% 98%;
+    --card: 222 47% 10%;
+    --card-foreground: 213 31% 91%;
 
-    --popover: 210 70% 7%;
-    --popover-foreground: 210 10% 98%;
+    --popover: 222 47% 10%;
+    --popover-foreground: 213 31% 91%;
 
-    --primary: 210 100% 50%;
-    --primary-foreground: 210 10% 10%;
+    --primary: 222 83% 55%;
+    --primary-foreground: 222 47% 10%;
 
-    --secondary: 210 30% 15%;
-    --secondary-foreground: 210 10% 98%;
+    --secondary: 223 47% 18%;
+    --secondary-foreground: 213 31% 91%;
 
-    --muted: 210 30% 15%;
-    --muted-foreground: 210 20% 70%;
+    --muted: 223 47% 18%;
+    --muted-foreground: 214 20% 65%;
 
-    --accent: 210 30% 25%;
-    --accent-foreground: 210 10% 98%;
+    --accent: 223 47% 25%;
+    --accent-foreground: 213 31% 91%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 10% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 213 31% 91%;
 
-    --border: 210 30% 25%;
-    --input: 210 30% 25%;
-    --ring: 210 100% 50%;
+    --border: 222 47% 25%;
+    --input: 222 47% 25%;
+    --ring: 222 83% 55%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-background: 222 47% 10%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 222 76% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 222 47% 18%;
+    --sidebar-ring: 222 83% 55%;
   }
 }
 
@@ -97,19 +98,19 @@
 
 @layer components {
   .bella-gradient-bg {
-    @apply bg-gradient-to-br from-amber-500/20 via-amber-400/10 to-amber-600/20 animate-gradient-shift bg-[length:200%_200%];
+    @apply bg-gradient-to-br from-blue-500/30 via-blue-400/20 to-blue-600/30 animate-gradient-shift bg-[length:200%_200%];
   }
   
   .bella-message {
-    @apply relative p-4 rounded-lg shadow-md bg-white dark:bg-amber-900/20 border border-amber-500/30;
+    @apply relative p-4 rounded-lg shadow-md bg-white dark:bg-blue-900/20 border border-blue-500/30;
   }
   
   .user-message {
-    @apply relative p-4 rounded-lg shadow-md bg-amber-500/10 dark:bg-amber-800/20 border border-amber-500/30;
+    @apply relative p-4 rounded-lg shadow-md bg-blue-500/10 dark:bg-blue-800/20 border border-blue-500/30;
   }
 
   .thinking-dot {
-    @apply w-2 h-2 rounded-full bg-amber-500;
+    @apply w-2 h-2 rounded-full bg-blue-500;
   }
   
   @keyframes thinking {
@@ -153,7 +154,7 @@
   /* Realistic avatar enhancements */
   .realistic-avatar-container {
     @apply relative overflow-hidden rounded-full;
-    box-shadow: 0 0 30px rgba(255, 191, 0, 0.3);
+    box-shadow: 0 0 30px rgba(29, 78, 216, 0.5);
   }
 
   .realistic-avatar-shadow {
@@ -166,18 +167,20 @@
     border-radius: 50% 50% 0 0;
   }
 
-  .realistic-avatar-eye {
-    @apply absolute w-6 h-3 bg-amber-800 rounded-full overflow-hidden;
+  /* AI Assistant styled components */
+  .ai-glass-panel {
+    @apply bg-white/80 dark:bg-blue-900/30 backdrop-blur-md border border-blue-200 dark:border-blue-900/50 rounded-xl shadow-lg;
+  }
+  
+  .ai-button {
+    @apply rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-300 active:scale-95;
+  }
+  
+  .ai-input {
+    @apply bg-white/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-full py-2 px-4 focus:ring-2 focus:ring-blue-500/40 focus:outline-none;
   }
 
-  .realistic-avatar-eye::before {
-    content: '';
-    @apply absolute w-4 h-4 bg-amber-600 rounded-full top-0 left-1;
-    box-shadow: 0 0 5px rgba(255, 191, 0, 0.8);
-  }
-
-  .realistic-avatar-eye::after {
-    content: '';
-    @apply absolute w-2 h-2 bg-black rounded-full top-0 left-2;
+  .ai-shimmer {
+    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer before:bg-gradient-to-r before:from-transparent before:via-blue-300/30 before:to-transparent;
   }
 }

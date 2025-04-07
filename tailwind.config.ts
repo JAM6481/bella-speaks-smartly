@@ -58,7 +58,13 @@ export default {
 					darkPurple: '#0284C7',
 					deepPurple: '#0369A1',
 					lightPurple: '#7DD3FC',
-					accent: '#0EA5E9'
+					accent: '#0EA5E9',
+					// Adding more powerful blue shades
+					powerBlue: '#1E40AF',
+					royalBlue: '#1D4ED8',
+					vividBlue: '#3B82F6',
+					skyBlue: '#38BDF8',
+					electricBlue: '#2563EB',
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -118,6 +124,14 @@ export default {
 					'0%': { backgroundPosition: '0% 50%' },
 					'50%': { backgroundPosition: '100% 50%' },
 					'100%': { backgroundPosition: '0% 50%' }
+				},
+				'glow-pulse': {
+					'0%, 100%': { boxShadow: '0 0 15px rgba(14, 165, 233, 0.5)' },
+					'50%': { boxShadow: '0 0 30px rgba(14, 165, 233, 0.8)' }
+				},
+				'shimmer': {
+					'0%': { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' }
 				}
 			},
 			animation: {
@@ -128,7 +142,9 @@ export default {
 				'avatar-talk': 'avatar-talk 0.3s infinite',
 				'thinking': 'thinking 1.5s infinite',
 				'float': 'float 6s ease-in-out infinite',
-				'gradient-shift': 'gradient-shift 10s ease infinite'
+				'gradient-shift': 'gradient-shift 10s ease infinite',
+				'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
+				'shimmer': 'shimmer 3s ease-in-out infinite'
 			}
 		}
 	},
