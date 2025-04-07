@@ -54,11 +54,11 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				bella: {
-					purple: '#9b87f5',
-					darkPurple: '#7E69AB',
-					deepPurple: '#6E59A5',
-					lightPurple: '#D6BCFA',
-					accent: '#ea384c'
+					purple: '#0EA5E9',
+					darkPurple: '#0284C7',
+					deepPurple: '#0369A1',
+					lightPurple: '#7DD3FC',
+					accent: '#0EA5E9'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

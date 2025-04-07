@@ -102,8 +102,8 @@ const BellaAssistant: React.FC = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-2xl md:text-3xl font-bold text-bella-deepPurple dark:text-bella-lightPurple">
-          Bella <span className="text-bella-accent">AI</span> Assistant
+        <h1 className="text-2xl md:text-3xl font-bold text-blue-700 dark:text-blue-300">
+          Bella <span className="text-blue-500">AI</span> Assistant
         </h1>
         
         <div className="flex items-center space-x-2">
@@ -111,18 +111,18 @@ const BellaAssistant: React.FC = () => {
             variant="ghost" 
             size="icon"
             onClick={toggleMute}
-            className="rounded-full hover:bg-bella-purple/10"
+            className="rounded-full hover:bg-blue-500/10"
           >
-            {muted ? <VolumeX className="h-5 w-5 text-bella-purple" /> : <Volume2 className="h-5 w-5 text-bella-purple" />}
+            {muted ? <VolumeX className="h-5 w-5 text-blue-500" /> : <Volume2 className="h-5 w-5 text-blue-500" />}
           </Button>
           
           <Button 
             variant="ghost" 
             size="icon"
             onClick={toggleDarkMode}
-            className="rounded-full hover:bg-bella-purple/10"
+            className="rounded-full hover:bg-blue-500/10"
           >
-            {isDarkMode ? <Sun className="h-5 w-5 text-bella-purple" /> : <Moon className="h-5 w-5 text-bella-purple" />}
+            {isDarkMode ? <Sun className="h-5 w-5 text-blue-500" /> : <Moon className="h-5 w-5 text-blue-500" />}
           </Button>
           
           <Sheet>
@@ -130,9 +130,9 @@ const BellaAssistant: React.FC = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="rounded-full hover:bg-bella-purple/10"
+                className="rounded-full hover:bg-blue-500/10"
               >
-                <Sliders className="h-5 w-5 text-bella-purple" />
+                <Sliders className="h-5 w-5 text-blue-500" />
               </Button>
             </SheetTrigger>
             <SheetContent>
@@ -213,9 +213,9 @@ const BellaAssistant: React.FC = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="rounded-full hover:bg-bella-purple/10"
+                className="rounded-full hover:bg-blue-500/10"
               >
-                <Settings className="h-5 w-5 text-bella-purple" />
+                <Settings className="h-5 w-5 text-blue-500" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -293,7 +293,7 @@ const BellaAssistant: React.FC = () => {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.6 }}
-        className="w-full py-4 text-center text-sm text-bella-deepPurple/60 dark:text-bella-lightPurple/60"
+        className="w-full py-4 text-center text-sm text-blue-700/60 dark:text-blue-300/60"
       >
         <p>Bella AI Assistant © 2025 | Built with React + TailwindCSS</p>
       </motion.footer>
