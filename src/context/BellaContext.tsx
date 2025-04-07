@@ -1,9 +1,14 @@
-
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/components/ui/use-toast';
 import { analyzeIntent, IntentResult } from '@/utils/intentService';
 import { TTSOptions, preloadVoices } from '@/utils/ttsService';
+import { 
+  AIProvider, 
+  AIProviderSettings, 
+  defaultAISettings,
+  getModelById
+} from '@/utils/aiProviders';
 
 interface Message {
   id: string;
@@ -19,9 +24,13 @@ interface BellaContextType {
   isTalking: boolean;
   mood: 'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused';
   ttsOptions: TTSOptions;
+  aiSettings: AIProviderSettings;
+  activeProvider: AIProvider;
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
+  updateAISettings: (provider: AIProvider, settings: Partial<AIProviderSettings[keyof AIProviderSettings]>) => void;
+  setActiveProvider: (provider: AIProvider) => void;
 }
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
@@ -147,6 +156,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     volume: 0.7,
     enhancedQuality: true,
   });
+  const [aiSettings, setAISettings] = useState<AIProviderSettings>(defaultAISettings);
+  const [activeProvider, setActiveProvider] = useState<AIProvider>('openrouter');
   const { toast } = useToast();
   
   // Preload voices when context is first created
@@ -197,7 +208,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
   
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback(async (content: string) => {
     // Process the message with intent recognition
     const intentResult = analyzeIntent(content);
     
@@ -217,18 +228,55 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newMood = determineMood(intentResult);
     setMood(newMood);
     
-    // Simulate variable thinking time based on complexity of the query
-    const baseTime = 1000; // Base minimum time
-    const wordCount = content.split(/\s+/).length;
-    const complexityFactor = Math.min(wordCount / 5, 3); // Cap at 3 seconds additional time
-    const responseTime = baseTime + (complexityFactor * 500) + (Math.random() * 1000);
+    // Get the model information
+    let responseContent = '';
     
-    setTimeout(() => {
+    try {
+      if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
+        // In a real app, this would call an edge function to protect the API key
+        const modelInfo = getModelById(aiSettings.openRouter.selectedModel);
+        
+        console.log(`Using OpenRouter with model: ${modelInfo?.name || aiSettings.openRouter.selectedModel}`);
+        // Simulate response generation
+        const responseTime = 1000 + Math.random() * 2000;
+        await new Promise(resolve => setTimeout(resolve, responseTime));
+        
+        // For demo purposes, get a canned response
+        responseContent = getIntentBasedResponse(intentResult);
+      } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
+        // In a real app, this would call the n8n webhook
+        console.log(`Using n8n workflow: ${aiSettings.n8n.selectedWorkflow}`);
+        // Simulate response generation
+        const responseTime = 1000 + Math.random() * 2000;
+        await new Promise(resolve => setTimeout(resolve, responseTime));
+        
+        // For demo purposes, get a canned response
+        responseContent = getIntentBasedResponse(intentResult);
+      } else {
+        // Fallback to default responses
+        console.log('Using built-in response generator');
+        
+        // Simulate variable thinking time based on complexity of the query
+        const baseTime = 1000; // Base minimum time
+        const wordCount = content.split(/\s+/).length;
+        const complexityFactor = Math.min(wordCount / 5, 3); // Cap at 3 seconds additional time
+        const responseTime = baseTime + (complexityFactor * 500) + (Math.random() * 1000);
+        
+        await new Promise(resolve => setTimeout(resolve, responseTime));
+        responseContent = getIntentBasedResponse(intentResult);
+      }
+    } catch (error) {
+      console.error('Error generating response:', error);
+      responseContent = "I'm sorry, I encountered an error processing your request. Please try again later.";
+      
+      toast({
+        title: "Error",
+        description: "Failed to generate response. Please check your settings and try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsThinking(false);
       setIsTalking(true);
-      
-      // Get an enhanced response based on the intent
-      const responseContent = getIntentBasedResponse(intentResult);
       
       // Add Bella's response
       const newBellaMessage: Message = {
@@ -256,8 +304,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setMood('neutral');
         }, 2000);
       }, speakingTime);
-    }, responseTime);
-  }, []);
+    }
+  }, [activeProvider, aiSettings, determineMood, toast]);
   
   const clearMessages = useCallback(() => {
     setMessages([
@@ -282,6 +330,21 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   }, []);
   
+  const updateAISettings = useCallback((provider: AIProvider, settings: Partial<AIProviderSettings[keyof AIProviderSettings]>) => {
+    setAISettings(prev => ({
+      ...prev,
+      [provider]: {
+        ...(prev[provider] as any),
+        ...settings
+      }
+    }));
+    
+    toast({
+      title: `${provider === 'openrouter' ? 'OpenRouter' : 'n8n'} settings updated`,
+      description: "Your AI provider settings have been updated.",
+    });
+  }, [toast]);
+  
   return (
     <BellaContext.Provider value={{
       messages,
@@ -289,9 +352,13 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isTalking,
       mood,
       ttsOptions,
+      aiSettings,
+      activeProvider,
       sendMessage,
       clearMessages,
-      updateTTSOptions
+      updateTTSOptions,
+      updateAISettings,
+      setActiveProvider
     }}>
       {children}
     </BellaContext.Provider>

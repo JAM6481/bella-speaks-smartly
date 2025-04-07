@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface BellaAvatarProps {
   isTalking: boolean;
@@ -33,22 +32,49 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
   const getMoodStyles = () => {
     switch(mood) {
       case 'happy':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.6)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.6)]';
       case 'thinking':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.4)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.4)]';
       case 'curious':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.5)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.5)]';
       case 'surprised':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.7)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.7)]';
       case 'concerned':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.3)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.3)]';
       case 'excited':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.8)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.8)]';
       case 'confused':
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.4)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.4)]';
       default:
-        return 'shadow-[0_0_30px_rgba(14,165,233,0.5)]';
+        return 'shadow-[0_0_30px_rgba(29,78,216,0.5)]';
     }
+  };
+
+  // Audio waveform effect for talking
+  const renderWaveform = () => {
+    if (!isTalking) return null;
+    
+    return (
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+        <div className="bg-blue-900/40 backdrop-blur-sm px-4 py-2 rounded-full z-10 flex space-x-1">
+          {[...Array(8)].map((_, i) => (
+            <motion.div 
+              key={i}
+              className="w-1 bg-blue-400"
+              animate={{ 
+                height: isTalking ? [8, 16 + Math.random() * 16, 8] : 8
+              }}
+              transition={{ 
+                repeat: Infinity, 
+                duration: 0.5 + Math.random() * 0.5, 
+                ease: "easeInOut",
+                delay: i * 0.05
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -59,21 +85,21 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute -top-14 bg-blue-500/20 backdrop-blur-sm px-4 py-2 rounded-full z-10"
+            className="absolute -top-14 bg-blue-900/40 backdrop-blur-sm px-4 py-2 rounded-full z-10"
           >
             <div className="flex space-x-3">
               <motion.div 
-                className="w-3 h-3 bg-blue-500 rounded-full"
+                className="w-3 h-3 bg-blue-400 rounded-full"
                 animate={{ y: [0, -8, 0] }}
                 transition={{ repeat: Infinity, duration: 1, ease: "easeInOut", delay: 0 }}
               />
               <motion.div 
-                className="w-3 h-3 bg-blue-500 rounded-full"
+                className="w-3 h-3 bg-blue-400 rounded-full"
                 animate={{ y: [0, -8, 0] }}
                 transition={{ repeat: Infinity, duration: 1, ease: "easeInOut", delay: 0.2 }}
               />
               <motion.div 
-                className="w-3 h-3 bg-blue-500 rounded-full"
+                className="w-3 h-3 bg-blue-400 rounded-full"
                 animate={{ y: [0, -8, 0] }}
                 transition={{ repeat: Infinity, duration: 1, ease: "easeInOut", delay: 0.4 }}
               />
@@ -92,10 +118,10 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
           ease: "easeInOut"
         }}
       >
-        <div className="w-full h-full rounded-full overflow-hidden border-4 border-blue-500/30">
-          <div className="w-full h-full relative bg-gradient-to-b from-blue-400/20 to-blue-600/20">
+        <div className="w-full h-full rounded-full overflow-hidden border-4 border-blue-600/30">
+          <div className="w-full h-full relative bg-gradient-to-b from-blue-900/20 to-blue-700/20">
             <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-blue-600/10"
+              className="absolute inset-0 bg-gradient-to-r from-blue-800/10 to-blue-600/10"
               animate={{
                 opacity: [0.5, 0.7, 0.5],
               }}
@@ -114,7 +140,7 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
             
             {isTalking && (
               <motion.div
-                className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-blue-500/40 to-transparent"
+                className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-blue-600/40 to-transparent"
                 animate={{
                   height: ["12%", "15%", "12%"],
                 }}
@@ -127,6 +153,8 @@ const BellaAvatar: React.FC<BellaAvatarProps> = ({
             )}
           </div>
         </div>
+        
+        {renderWaveform()}
       </motion.div>
       
       {/* Enhanced pulse effect when active */}

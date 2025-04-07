@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, MessageSquare, LayoutDashboard } from 'lucide-react';
+import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, MessageSquare, LayoutDashboard, Bot, Network } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -19,25 +19,40 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetFooter
 } from "@/components/ui/sheet";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import { Badge } from '@/components/ui/badge';
 import BellaAvatar from '@/components/BellaAvatar';
 import ChatInterface from '@/components/ChatInterface';
+import AISettings from '@/components/AISettings';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
+import { AIProvider } from '@/utils/aiProviders';
 
 const BellaAssistant: React.FC = () => {
-  const { messages, isThinking, isTalking, mood, ttsOptions, sendMessage, clearMessages, updateTTSOptions } = useBella();
+  const { 
+    messages, 
+    isThinking, 
+    isTalking, 
+    mood, 
+    ttsOptions, 
+    sendMessage, 
+    clearMessages, 
+    updateTTSOptions,
+    aiSettings,
+    activeProvider
+  } = useBella();
+  
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState([ttsOptions.volume ? ttsOptions.volume * 100 : 70]);
@@ -50,6 +65,32 @@ const BellaAssistant: React.FC = () => {
     }).catch(error => {
       console.error('Error preloading voices:', error);
     });
+  }, []);
+
+  useEffect(() => {
+    // Check system preference for dark mode
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+      setIsDarkMode(true);
+    }
+    
+    // Listen for changes in system preference
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleDarkModeChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        document.documentElement.classList.add('dark');
+        setIsDarkMode(true);
+      } else {
+        document.documentElement.classList.remove('dark');
+        setIsDarkMode(false);
+      }
+    };
+    
+    darkModeMediaQuery.addEventListener('change', handleDarkModeChange);
+    
+    return () => {
+      darkModeMediaQuery.removeEventListener('change', handleDarkModeChange);
+    };
   }, []);
 
   const toggleDarkMode = () => {
@@ -118,6 +159,25 @@ const BellaAssistant: React.FC = () => {
     });
   };
 
+  const getProviderBadge = () => {
+    if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
+      return (
+        <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+          <Bot className="w-3 h-3 mr-1" /> 
+          {aiSettings.openRouter.selectedModel.split('/')[1]?.split('-').slice(0, 2).join(' ')}
+        </Badge>
+      );
+    } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
+      return (
+        <Badge className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+          <Network className="w-3 h-3 mr-1" /> 
+          n8n Connected
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className={`min-h-screen bella-gradient-bg flex flex-col items-center`}>
       <motion.header 
@@ -135,6 +195,9 @@ const BellaAssistant: React.FC = () => {
           <span className="text-blue-500 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-md text-sm md:text-base font-semibold">
             Premium AI
           </span>
+          <div className="ml-2">
+            {getProviderBadge()}
+          </div>
         </motion.div>
         
         <div className="flex items-center space-x-2">
@@ -166,121 +229,155 @@ const BellaAssistant: React.FC = () => {
                 <Sliders className="h-5 w-5 text-blue-500" />
               </Button>
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent className="overflow-y-auto">
               <SheetHeader>
                 <SheetTitle className="text-blue-600 dark:text-blue-400 font-semibold">Bella AI Settings</SheetTitle>
                 <SheetDescription>
                   Customize your AI assistant experience
                 </SheetDescription>
               </SheetHeader>
-              <div className="py-6 space-y-8">
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Voice Settings</h3>
-                  
-                  <div className="space-y-3">
-                    <Label htmlFor="voice-select">Voice</Label>
-                    <Select 
-                      onValueChange={handleVoiceChange} 
-                      defaultValue={ttsOptions.voice}
-                    >
-                      <SelectTrigger id="voice-select" className="border-blue-200 dark:border-blue-800">
-                        <SelectValue placeholder="Select a voice" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableVoices.map((voice) => (
-                          <SelectItem key={voice.id} value={voice.id}>
-                            {voice.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {availableVoices.find(v => v.id === ttsOptions.voice)?.description || 
-                       "A high-quality voice for Bella AI"}
-                    </p>
+              
+              <Tabs defaultValue="voice" className="mt-6">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="voice">Voice</TabsTrigger>
+                  <TabsTrigger value="ai">AI Model</TabsTrigger>
+                  <TabsTrigger value="interface">Interface</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="voice" className="mt-4 space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Voice Settings</h3>
+                    
+                    <div className="space-y-3">
+                      <Label htmlFor="voice-select">Voice</Label>
+                      <Select 
+                        onValueChange={handleVoiceChange} 
+                        defaultValue={ttsOptions.voice}
+                      >
+                        <SelectTrigger id="voice-select" className="border-blue-200 dark:border-blue-800">
+                          <SelectValue placeholder="Select a voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableVoices.map((voice) => (
+                            <SelectItem key={voice.id} value={voice.id}>
+                              {voice.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {availableVoices.find(v => v.id === ttsOptions.voice)?.description || 
+                         "A high-quality voice for Bella AI"}
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="quality-toggle">Enhanced Voice Quality</Label>
+                        <Switch 
+                          id="quality-toggle" 
+                          checked={ttsOptions.enhancedQuality || false}
+                          onCheckedChange={handleQualityChange}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Higher quality voice synthesis with improved naturalness and clarity
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="volume-slider">Volume</Label>
+                        <span className="text-sm text-muted-foreground">{volume[0]}%</span>
+                      </div>
+                      <Slider
+                        id="volume-slider"
+                        value={volume}
+                        onValueChange={handleVolumeChange}
+                        max={100}
+                        step={1}
+                        className="py-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Quieter</span>
+                        <span>Louder</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="pitch-slider">Voice Pitch</Label>
+                        <span className="text-sm text-muted-foreground">
+                          {Math.round((ttsOptions.pitch || 1) * 50)}%
+                        </span>
+                      </div>
+                      <Slider
+                        id="pitch-slider"
+                        defaultValue={[ttsOptions.pitch ? ttsOptions.pitch * 50 : 50]}
+                        onValueChange={handlePitchChange}
+                        max={100}
+                        step={1}
+                        className="py-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Lower</span>
+                        <span>Higher</span>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="rate-slider">Speaking Rate</Label>
+                        <span className="text-sm text-muted-foreground">
+                          {Math.round((ttsOptions.rate || 1) * 50)}%
+                        </span>
+                      </div>
+                      <Slider
+                        id="rate-slider"
+                        defaultValue={[ttsOptions.rate ? ttsOptions.rate * 50 : 50]}
+                        onValueChange={handleRateChange}
+                        max={100}
+                        step={1}
+                        className="py-2"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Slower</span>
+                        <span>Faster</span>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-3">
+                </TabsContent>
+                
+                <TabsContent value="ai" className="mt-4">
+                  <AISettings />
+                </TabsContent>
+                
+                <TabsContent value="interface" className="mt-4 space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Interface Settings</h3>
+                    
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="quality-toggle">Enhanced Voice Quality</Label>
+                      <Label htmlFor="dark-mode">Dark Mode</Label>
                       <Switch 
-                        id="quality-toggle" 
-                        checked={ttsOptions.enhancedQuality || false}
-                        onCheckedChange={handleQualityChange}
+                        id="dark-mode" 
+                        checked={isDarkMode} 
+                        onCheckedChange={toggleDarkMode} 
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Higher quality voice synthesis with improved naturalness and clarity
-                    </p>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="pitch-slider">Voice Pitch</Label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round((ttsOptions.pitch || 1) * 50)}%
-                      </span>
-                    </div>
-                    <Slider
-                      id="pitch-slider"
-                      defaultValue={[ttsOptions.pitch ? ttsOptions.pitch * 50 : 50]}
-                      onValueChange={handlePitchChange}
-                      max={100}
-                      step={1}
-                      className="py-2"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Lower</span>
-                      <span>Higher</span>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="rate-slider">Speaking Rate</Label>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round((ttsOptions.rate || 1) * 50)}%
-                      </span>
-                    </div>
-                    <Slider
-                      id="rate-slider"
-                      defaultValue={[ttsOptions.rate ? ttsOptions.rate * 50 : 50]}
-                      onValueChange={handleRateChange}
-                      max={100}
-                      step={1}
-                      className="py-2"
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Slower</span>
-                      <span>Faster</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Interface Settings</h3>
-                  
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="dark-mode">Dark Mode</Label>
-                    <Switch 
-                      id="dark-mode" 
-                      checked={isDarkMode} 
-                      onCheckedChange={toggleDarkMode} 
-                    />
-                  </div>
-                </div>
-                
-                <div className="pt-4 border-t border-blue-200 dark:border-blue-800">
-                  <Button 
-                    variant="destructive" 
-                    onClick={clearMessages}
-                    className="w-full"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Clear Conversation
-                  </Button>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
+              
+              <SheetFooter className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-800">
+                <Button 
+                  variant="destructive" 
+                  onClick={clearMessages}
+                  className="w-full"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Conversation
+                </Button>
+              </SheetFooter>
             </SheetContent>
           </Sheet>
           
@@ -392,6 +489,13 @@ const BellaAssistant: React.FC = () => {
               <LayoutDashboard className="h-6 w-6 text-blue-500" />
             </div>
             <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Smart Interface</p>
+          </motion.div>
+          
+          <motion.div whileHover={{ scale: 1.05 }} className="text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-2">
+              <Bot className="h-6 w-6 text-blue-500" />
+            </div>
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Advanced AI Models</p>
           </motion.div>
         </div>
       </motion.div>

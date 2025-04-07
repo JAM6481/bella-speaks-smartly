@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, SendHorizontal, Wand, Star, Trophy } from 'lucide-react';
@@ -9,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import EnhancedSpeechSynthesis from '@/components/EnhancedSpeechSynthesis';
 import { TTSOptions } from '@/utils/ttsService';
 import { Badge } from '@/components/ui/badge';
+import { SpeechRecognitionWrapper } from '@/components/SpeechRecognitionWrapper';
 
 interface Message {
   id: string;
@@ -40,82 +40,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  // SpeechRecognition setup
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  
-  useEffect(() => {
-    // Initialize speech recognition
-    if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognitionAPI();
-      
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-      
-      recognitionRef.current.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
-        
-        setRecognizedText(transcript);
-        
-        // If we have a final result in continuous listening mode, send it
-        const isFinalResult = event.results[event.results.length - 1].isFinal;
-        if (isContinuousListening && isFinalResult && transcript.trim()) {
-          // Auto-send message after a short pause to allow for natural breaks
-          const finalTranscript = transcript.trim();
-          setTimeout(() => {
-            onSendMessage(finalTranscript);
-            setRecognizedText('');
-          }, 1000);
-        }
-      };
-      
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        setIsRecording(false);
-        toast({
-          title: "Voice recognition error",
-          description: `Error: ${event.error}. Please try again.`,
-          variant: "destructive"
-        });
-      };
-      
-      recognitionRef.current.onend = () => {
-        // If still recording when recognition ends, restart it
-        if (isRecording && !isContinuousListening) {
-          const finalText = recognizedText.trim();
-          if (finalText) {
-            onSendMessage(finalText);
-            setRecognizedText('');
-          }
-          setIsRecording(false);
-        } else if (isRecording && isContinuousListening) {
-          // Restart for continuous mode
-          recognitionRef.current?.start();
-        }
-      };
-    } else {
-      toast({
-        title: "Speech recognition not supported",
-        description: "Your browser doesn't support speech recognition.",
-        variant: "destructive"
-      });
-    }
-    
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        if (isRecording) {
-          recognitionRef.current.stop();
+  const { startListening, stopListening, isListening, transcript, resetTranscript, browserSupportsSpeechRecognition } = 
+    SpeechRecognitionWrapper({
+      continuous: true,
+      onResult: (text) => setRecognizedText(text),
+      onFinalResult: (text) => {
+        if (isContinuousListening && text.trim()) {
+          onSendMessage(text.trim());
+          resetTranscript();
         }
       }
-    };
-  }, [isRecording, isContinuousListening]);
+    });
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -136,11 +71,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (input.trim()) {
       onSendMessage(input.trim());
       setInput('');
+    } else if (recognizedText.trim()) {
+      onSendMessage(recognizedText.trim());
+      resetTranscript();
     }
   };
 
   const toggleRecording = () => {
-    if (!recognitionRef.current) {
+    if (!browserSupportsSpeechRecognition) {
       toast({
         title: "Speech recognition not available",
         description: "Your browser doesn't support speech recognition.",
@@ -151,8 +89,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     
     if (!isRecording) {
       setIsRecording(true);
-      setRecognizedText('');
-      recognitionRef.current.start();
+      resetTranscript();
+      startListening();
       
       toast({
         title: isContinuousListening ? "Continuous listening mode" : "Listening...",
@@ -162,7 +100,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
     } else {
       setIsRecording(false);
-      recognitionRef.current.stop();
+      stopListening();
+      
+      // In non-continuous mode, send the final transcript
+      if (!isContinuousListening && recognizedText.trim()) {
+        onSendMessage(recognizedText.trim());
+        resetTranscript();
+      }
       
       toast({
         title: "Recording stopped",
@@ -174,7 +118,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const toggleContinuousListening = () => {
     // If currently recording, stop first
     if (isRecording) {
-      recognitionRef.current?.stop();
+      stopListening();
       setIsRecording(false);
     }
     
@@ -257,7 +201,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-blue-200 dark:scrollbar-thumb-blue-800 scrollbar-track-transparent"
       >
-        {/* Show suggested actions on empty chat */}
         {messages.length <= 1 && (
           <div className="flex flex-col space-y-3 mb-4">
             <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Suggested actions:</p>
@@ -413,7 +356,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           <Button 
             type="submit" 
             size="icon" 
-            disabled={!input.trim() || isRecording}
+            disabled={!input.trim() && !recognizedText.trim()}
             className="rounded-full bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200"
           >
             <SendHorizontal size={18} />

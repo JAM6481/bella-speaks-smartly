@@ -54,17 +54,16 @@ export default {
 					foreground: 'hsl(var(--card-foreground))'
 				},
 				bella: {
-					purple: '#0EA5E9',
-					darkPurple: '#0284C7',
-					deepPurple: '#0369A1',
-					lightPurple: '#7DD3FC',
-					accent: '#0EA5E9',
-					// Adding more powerful blue shades
-					powerBlue: '#1E40AF',
-					royalBlue: '#1D4ED8',
+					// Enhanced powerful blue palette
+					blue: '#1E40AF',
+					darkBlue: '#1E3A8A',
+					royalBlue: '#2563EB',
+					powerBlue: '#1D4ED8',
 					vividBlue: '#3B82F6',
-					skyBlue: '#38BDF8',
+					skyBlue: '#0EA5E9',
 					electricBlue: '#2563EB',
+					lightBlue: '#38BDF8',
+					accent: '#1D4ED8',
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -104,10 +103,6 @@ export default {
 					'50%': { opacity: '0.5' },
 					'100%': { transform: 'scale(1.2)', opacity: '0' }
 				},
-				'avatar-blink': {
-					'0%, 90%, 100%': { transform: 'scaleY(1)' },
-					'95%': { transform: 'scaleY(0.1)' }
-				},
 				'avatar-talk': {
 					'0%, 100%': { transform: 'scaleY(0.8)' },
 					'50%': { transform: 'scaleY(1)' }
@@ -126,25 +121,29 @@ export default {
 					'100%': { backgroundPosition: '0% 50%' }
 				},
 				'glow-pulse': {
-					'0%, 100%': { boxShadow: '0 0 15px rgba(14, 165, 233, 0.5)' },
-					'50%': { boxShadow: '0 0 30px rgba(14, 165, 233, 0.8)' }
+					'0%, 100%': { boxShadow: '0 0 15px rgba(29, 78, 216, 0.5)' },
+					'50%': { boxShadow: '0 0 30px rgba(29, 78, 216, 0.8)' }
 				},
 				'shimmer': {
 					'0%': { backgroundPosition: '-200% 0' },
 					'100%': { backgroundPosition: '200% 0' }
+				},
+				'waveform': {
+					'0%, 100%': { height: '4px' },
+					'50%': { height: '16px' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-ring': 'pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite',
-				'avatar-blink': 'avatar-blink 5s infinite',
 				'avatar-talk': 'avatar-talk 0.3s infinite',
 				'thinking': 'thinking 1.5s infinite',
 				'float': 'float 6s ease-in-out infinite',
 				'gradient-shift': 'gradient-shift 10s ease infinite',
 				'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
-				'shimmer': 'shimmer 3s ease-in-out infinite'
+				'shimmer': 'shimmer 3s ease-in-out infinite',
+				'waveform': 'waveform 1s ease-in-out infinite'
 			}
 		}
 	},
