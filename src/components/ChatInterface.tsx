@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, SendHorizontal } from 'lucide-react';
@@ -43,57 +42,59 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   useEffect(() => {
     // Initialize speech recognition
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-      
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
-      
-      recognitionRef.current.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
+      const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognitionClass) {
+        recognitionRef.current = new SpeechRecognitionClass();
         
-        setRecognizedText(transcript);
+        recognitionRef.current.continuous = true;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US';
         
-        // If we have a final result in continuous listening mode, send it
-        const isFinalResult = event.results[event.results.length - 1].isFinal;
-        if (isContinuousListening && isFinalResult && transcript.trim()) {
-          // Auto-send message after a short pause to allow for natural breaks
-          const finalTranscript = transcript.trim();
-          setTimeout(() => {
-            onSendMessage(finalTranscript);
-            setRecognizedText('');
-          }, 1000);
-        }
-      };
-      
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        setIsRecording(false);
-        toast({
-          title: "Voice recognition error",
-          description: `Error: ${event.error}. Please try again.`,
-          variant: "destructive"
-        });
-      };
-      
-      recognitionRef.current.onend = () => {
-        // If still recording when recognition ends, restart it
-        if (isRecording && !isContinuousListening) {
-          const finalText = recognizedText.trim();
-          if (finalText) {
-            onSendMessage(finalText);
-            setRecognizedText('');
+        recognitionRef.current.onresult = (event) => {
+          const transcript = Array.from(event.results)
+            .map(result => result[0])
+            .map(result => result.transcript)
+            .join('');
+          
+          setRecognizedText(transcript);
+          
+          // If we have a final result in continuous listening mode, send it
+          const isFinalResult = event.results[event.results.length - 1].isFinal;
+          if (isContinuousListening && isFinalResult && transcript.trim()) {
+            // Auto-send message after a short pause to allow for natural breaks
+            const finalTranscript = transcript.trim();
+            setTimeout(() => {
+              onSendMessage(finalTranscript);
+              setRecognizedText('');
+            }, 1000);
           }
+        };
+        
+        recognitionRef.current.onerror = (event) => {
+          console.error('Speech recognition error', event.error);
           setIsRecording(false);
-        } else if (isRecording && isContinuousListening) {
-          // Restart for continuous mode
-          recognitionRef.current?.start();
-        }
-      };
+          toast({
+            title: "Voice recognition error",
+            description: `Error: ${event.error}. Please try again.`,
+            variant: "destructive"
+          });
+        };
+        
+        recognitionRef.current.onend = () => {
+          // If still recording when recognition ends, restart it
+          if (isRecording && !isContinuousListening) {
+            const finalText = recognizedText.trim();
+            if (finalText) {
+              onSendMessage(finalText);
+              setRecognizedText('');
+            }
+            setIsRecording(false);
+          } else if (isRecording && isContinuousListening) {
+            // Restart for continuous mode
+            recognitionRef.current?.start();
+          }
+        };
+      }
     } else {
       toast({
         title: "Speech recognition not supported",
