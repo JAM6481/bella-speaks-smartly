@@ -1,4 +1,3 @@
-
 /**
  * Enhanced TTS service for Bella
  * This connects to a Supabase Edge Function that processes TTS requests
@@ -6,13 +5,48 @@
 
 // Enhanced voice options for a more natural and premium experience
 export const availableVoices = [
-  { id: 'bella_premium', name: 'Bella (Premium)', language: 'en-US', description: 'A warm, confident voice with natural intonation and clarity.' },
-  { id: 'bella_professional', name: 'Bella (Professional)', language: 'en-US', description: 'A clear, authoritative voice perfect for business and educational content.' },
-  { id: 'bella_warm', name: 'Bella (Warm)', language: 'en-US', description: 'A friendly, approachable voice with emotional range and warmth.' },
-  { id: 'bella_formal', name: 'Bella (Formal)', language: 'en-US', description: 'A precise, structured voice that conveys expertise and reliability.' },
-  { id: 'bella_casual', name: 'Bella (Casual)', language: 'en-US', description: 'A relaxed, conversational voice that feels like talking to a friend.' },
-  { id: 'bella_cheerful', name: 'Bella (Cheerful)', language: 'en-US', description: 'An upbeat, positive voice that conveys enthusiasm and energy.' },
-  { id: 'bella_gentle', name: 'Bella (Gentle)', language: 'en-US', description: 'A soft, soothing voice perfect for calming content and guidance.' },
+  { 
+    id: 'bella_professional', 
+    name: 'Bella Professional', 
+    language: 'en-US', 
+    description: 'A confident, articulate voice with a professional yet approachable demeanor, and a subtle, captivating charm. Perfect for a premium AI assistant.'
+  },
+  { 
+    id: 'bella_premium', 
+    name: 'Bella Premium', 
+    language: 'en-US', 
+    description: 'A warm, confident voice with natural intonation and clarity.' 
+  },
+  { 
+    id: 'bella_warm', 
+    name: 'Bella Warm', 
+    language: 'en-US', 
+    description: 'A friendly, approachable voice with emotional range and warmth.' 
+  },
+  { 
+    id: 'bella_formal', 
+    name: 'Bella Formal', 
+    language: 'en-US', 
+    description: 'A precise, structured voice that conveys expertise and reliability.' 
+  },
+  { 
+    id: 'bella_casual', 
+    name: 'Bella Casual', 
+    language: 'en-US', 
+    description: 'A relaxed, conversational voice that feels like talking to a friend.' 
+  },
+  { 
+    id: 'bella_cheerful', 
+    name: 'Bella Cheerful', 
+    language: 'en-US', 
+    description: 'An upbeat, positive voice that conveys enthusiasm and energy.' 
+  },
+  { 
+    id: 'bella_gentle', 
+    name: 'Bella Gentle', 
+    language: 'en-US', 
+    description: 'A soft, soothing voice perfect for calming content and guidance.' 
+  },
 ];
 
 export interface TTSOptions {
@@ -21,6 +55,10 @@ export interface TTSOptions {
   rate?: number; // 0.5 to 2.0
   volume?: number; // 0 to 1.0
   enhancedQuality?: boolean; // Higher quality with more computational cost
+  accent?: string; // Added for more voice customization
+  age?: string; // Added for more voice customization
+  style?: string; // Added for more voice customization
+  personality?: string; // Added for more voice customization
 }
 
 export interface TTSResponse {
@@ -40,6 +78,10 @@ const defaultOptions: TTSOptions = {
   rate: 1.0,  // Standard rate for natural speaking
   volume: 1.0,
   enhancedQuality: true, // Enable enhanced quality by default
+  accent: 'neutral',
+  age: 'adult',
+  style: 'neutral',
+  personality: 'neutral'
 };
 
 /**

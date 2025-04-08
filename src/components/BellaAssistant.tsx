@@ -42,10 +42,10 @@ import BellaAvatar from '@/components/BellaAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import AISettings from '@/components/AISettings';
 import IntegrationsPanel from '@/components/IntegrationsPanel';
+import GoogleAPISettings from '@/components/GoogleAPISettings';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
-import { AIProvider } from '@/utils/aiProviders';
 
 const BellaAssistant: React.FC = () => {
   const { 
@@ -255,9 +255,10 @@ const BellaAssistant: React.FC = () => {
               </SheetHeader>
               
               <Tabs defaultValue="voice" className="mt-6">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="voice">Voice</TabsTrigger>
                   <TabsTrigger value="ai">AI Model</TabsTrigger>
+                  <TabsTrigger value="google">Google</TabsTrigger>
                   <TabsTrigger value="integrations">
                     Integrations
                     {connectedIntegrationsCount > 0 && (
@@ -375,6 +376,10 @@ const BellaAssistant: React.FC = () => {
                 
                 <TabsContent value="ai" className="mt-4">
                   <AISettings />
+                </TabsContent>
+                
+                <TabsContent value="google" className="mt-4">
+                  <GoogleAPISettings />
                 </TabsContent>
                 
                 <TabsContent value="integrations" className="mt-4">

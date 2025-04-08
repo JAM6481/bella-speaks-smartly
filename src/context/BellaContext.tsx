@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useToast } from '@/components/ui/use-toast';
-import { analyzeIntent, IntentResult } from '@/utils/intentService';
+import { useToast } from '@/hooks/use-toast';
+import { analyzeIntent } from '@/utils/intentService';
 import { TTSOptions, preloadVoices } from '@/utils/ttsService';
 import { 
   AIProvider, 
@@ -10,37 +10,19 @@ import {
   defaultAISettings,
   getModelById
 } from '@/utils/aiProviders';
-
-// Define integrations
-export type IntegrationType = 'googleCalendar' | 'googleContacts' | 'gmail' | 'outlookEmail';
-
-export interface Integration {
-  type: IntegrationType;
-  isConnected: boolean;
-  lastSynced?: Date;
-}
-
-export interface Message {
-  id: string;
-  content: string;
-  sender: 'user' | 'bella';
-  timestamp: Date;
-  intentResult?: IntentResult;
-}
-
-export interface UserPreference {
-  key: string;
-  value: string | number | boolean;
-  timestamp: Date;
-}
+import { mockConnectIntegration, saveGoogleAPISettings, getGoogleAPISettings, GoogleAPISettings } from '@/utils/integrationUtils';
+import { getIntentBasedResponse } from '@/utils/responseGenerator';
+import { determineMood } from '@/utils/moodUtils';
+import { Message, UserPreference, IntegrationType, Integration, BellaMood } from '@/types/bella';
 
 export interface BellaContextType {
   messages: Message[];
   isThinking: boolean;
   isTalking: boolean;
-  mood: 'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused';
+  mood: BellaMood;
   ttsOptions: TTSOptions;
   aiSettings: AIProviderSettings;
+  googleAPISettings: GoogleAPISettings;
   activeProvider: AIProvider;
   integrations: Record<IntegrationType, Integration>;
   userPreferences: UserPreference[];
@@ -48,6 +30,7 @@ export interface BellaContextType {
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
   updateAISettings: (provider: AIProvider, settings: Partial<AIProviderSettings[keyof AIProviderSettings]>) => void;
+  updateGoogleAPISettings: (settings: Partial<GoogleAPISettings>) => void;
   setActiveProvider: (provider: AIProvider) => void;
   connectIntegration: (type: IntegrationType) => Promise<boolean>;
   disconnectIntegration: (type: IntegrationType) => void;
@@ -55,188 +38,6 @@ export interface BellaContextType {
 }
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
-
-// Enhanced responses for a more premium, helpful experience
-const premiumResponses = [
-  "I'm Bella, your premium AI assistant. I'm designed to be helpful, informative, and engaging. How can I assist you today?",
-  "The current weather shows clear skies with a temperature of 73°F. It's a beautiful day with a gentle breeze from the southwest at 5 mph. The forecast predicts similar conditions for the next 24 hours.",
-  "I've set that reminder for you. You'll receive a notification at the specified time. Is there anything else you'd like me to add to the reminder?",
-  "I've found several relevant results for your query. Would you like me to summarize the key points or would you prefer more detailed information on a specific aspect?",
-  "I'm constantly learning and evolving. While I strive to be helpful, there might be topics where my knowledge is limited. Please feel free to ask for clarification or rephrase your question.",
-  "Is there anything specific you'd like to know or discuss? I'm here to assist with information, tasks, or just conversation.",
-];
-
-const getEnhancedResponse = () => {
-  return premiumResponses[Math.floor(Math.random() * premiumResponses.length)];
-};
-
-// Enhanced intent-based responses for a more helpful and natural experience
-const getIntentBasedResponse = (intentResult: IntentResult): string => {
-  const { topIntent, entities, text, primaryEmotion, contextualMemory } = intentResult;
-  const userPreferences = contextualMemory?.userPreferences || {};
-  const recentTopics = contextualMemory?.recentTopics || [];
-  
-  // Personalization based on user preferences and context
-  let personalizedPrefix = "";
-  if (Object.keys(userPreferences).length > 0) {
-    if (userPreferences.like && Math.random() > 0.7) {
-      personalizedPrefix = `Since you like ${userPreferences.like}, I thought you might appreciate this: `;
-    } else if (userPreferences.favorite_color && Math.random() > 0.8) {
-      personalizedPrefix = `I remember your favorite color is ${userPreferences.favorite_color}. `;
-    }
-  }
-  
-  // Reference to recent topics for conversational continuity
-  let topicReference = "";
-  if (recentTopics.length > 1 && Math.random() > 0.8) {
-    topicReference = `Going back to our conversation about ${recentTopics[1]}, `;
-  }
-  
-  switch (topIntent) {
-    case 'greeting':
-      const timeOfDay = new Date().getHours();
-      let greeting = "Hello";
-      
-      if (timeOfDay < 12) greeting = "Good morning";
-      else if (timeOfDay < 18) greeting = "Good afternoon";
-      else greeting = "Good evening";
-      
-      return `${greeting}! I'm Bella, your premium AI assistant. I'm designed to help with information, tasks, and conversation. How can I make your day better?`;
-    
-    case 'weather':
-      const locations = entities.filter(e => e.entity === 'location');
-      const weatherLocation = locations.length > 0 ? locations[0].value : 'your location';
-      
-      return `${personalizedPrefix}Based on the latest data for ${weatherLocation}, it's currently 72°F with clear skies. The forecast shows a high of 78°F with a 5% chance of precipitation. Would you like more detailed weather information or a forecast for the coming days?`;
-    
-    case 'reminder':
-      let reminderResponse = "I'll set that reminder for you.";
-      
-      // Check for time/date entities
-      const timeEntity = entities.find(e => e.entity === 'time');
-      const dateEntity = entities.find(e => e.entity === 'date');
-      const taskEntity = entities.find(e => e.entity === 'task');
-      
-      if (timeEntity && dateEntity) {
-        reminderResponse = `I've set a reminder for ${dateEntity.value} at ${timeEntity.value}.`;
-      } else if (timeEntity) {
-        reminderResponse = `I've set a reminder for today at ${timeEntity.value}.`;
-      } else if (dateEntity) {
-        reminderResponse = `I've set a reminder for ${dateEntity.value}.`;
-      }
-      
-      if (taskEntity) {
-        reminderResponse += ` I'll remind you to "${taskEntity.value}".`;
-      }
-      
-      return reminderResponse + " Is there anything else you'd like me to remind you about or any details you'd like to add?";
-    
-    case 'calendar':
-      const eventTitle = entities.find(e => e.entity === 'event_title');
-      const eventDate = entities.find(e => e.entity === 'date');
-      const eventTime = entities.find(e => e.entity === 'time');
-      const attendees = entities.find(e => e.entity === 'attendees');
-      
-      if (eventTitle) {
-        let calendarResponse = `I'll add "${eventTitle.value}" to your calendar`;
-        
-        if (eventDate && eventTime) {
-          calendarResponse += ` on ${eventDate.value} at ${eventTime.value}`;
-        } else if (eventDate) {
-          calendarResponse += ` on ${eventDate.value}`;
-        } else if (eventTime) {
-          calendarResponse += ` at ${eventTime.value} today`;
-        }
-        
-        if (attendees) {
-          calendarResponse += ` with ${attendees.value}`;
-        }
-        
-        return `${calendarResponse}. Would you like me to set a reminder for this event as well?`;
-      }
-      
-      return "I can help you manage your calendar. Would you like to add an event, check your schedule, or sync with your Google Calendar?";
-    
-    case 'email':
-      const emailEntity = entities.find(e => e.entity === 'email');
-      
-      if (text.toLowerCase().includes('check') || text.toLowerCase().includes('read')) {
-        return `${topicReference}I can check your emails for you. Would you like me to show your most recent unread messages?`;
-      } else if (text.toLowerCase().includes('send') || text.toLowerCase().includes('write') || text.toLowerCase().includes('compose')) {
-        let emailResponse = "I can help you compose an email";
-        
-        if (emailEntity) {
-          emailResponse += ` to ${emailEntity.value}`;
-        }
-        
-        return `${emailResponse}. What would you like the subject and content to be?`;
-      }
-      
-      return "I can help you with your emails. Would you like to check your inbox or compose a new message?";
-    
-    case 'contacts':
-      if (text.toLowerCase().includes('find') || text.toLowerCase().includes('search')) {
-        return "I can search your contacts for you. Who would you like to find?";
-      } else if (text.toLowerCase().includes('add')) {
-        return "I can help you add a new contact. Please provide the name and contact information.";
-      }
-      
-      return "I can help you manage your contacts. Would you like to search for someone, add a new contact, or view your recent contacts?";
-    
-    case 'search':
-      // Detect the search topic for a more personalized response
-      const searchTopic = text.replace(/search for|find|look up|google|information about/gi, '').trim();
-      if (searchTopic) {
-        return `${personalizedPrefix}I've found some information about "${searchTopic}". Would you like me to summarize the key points or would you prefer more detailed information?`;
-      }
-      return "I've searched for that information. Would you like me to provide a summary or more specific details on a particular aspect?";
-    
-    case 'help':
-      return `${topicReference}I'm here to assist you with a wide range of tasks and questions. I can help with weather updates, setting reminders, answering questions, providing recommendations, managing your calendar, checking emails, or just having a conversation. What specifically would you like help with today?`;
-    
-    case 'learning_preference':
-      return "Thank you for sharing that preference with me. I'll remember it for future interactions to provide you with more personalized assistance.";
-    
-    case 'joke':
-      const premiumJokes = [
-        "Why did the AI assistant go to art school? To learn how to draw better conclusions!",
-        "What do you call an AI that sings? Artificial Harmonies!",
-        "Why don't scientists trust atoms? Because they make up everything!",
-        "Did you hear about the mathematician who's afraid of negative numbers? He'll stop at nothing to avoid them!",
-        "Why did the computer go to therapy? It had too many bytes of emotional baggage!",
-        "How does a penguin build its house? Igloos it together!"
-      ];
-      return `${personalizedPrefix}${premiumJokes[Math.floor(Math.random() * premiumJokes.length)]}`;
-    
-    case 'farewell':
-      const farewellResponses = [
-        "Goodbye! It was a pleasure assisting you. Feel free to return whenever you need help!",
-        "Until next time! If you have any more questions later, I'll be here to help.",
-        "Take care! Looking forward to our next conversation.",
-        "Farewell! Don't hesitate to reach out again if you need assistance."
-      ];
-      return farewellResponses[Math.floor(Math.random() * farewellResponses.length)];
-    
-    case 'gratitude':
-      const gratitudeResponses = [
-        "You're very welcome! It's my pleasure to assist you.",
-        "Happy to help! Is there anything else you'd like to know?",
-        "Glad I could be of assistance! Don't hesitate to ask if you need anything else.",
-        "My pleasure! I'm here whenever you need help."
-      ];
-      return `${gratitudeResponses[Math.floor(Math.random() * gratitudeResponses.length)]}`;
-      
-    default:
-      return `${personalizedPrefix}${topicReference}${getEnhancedResponse()}`;
-  }
-};
-
-// Mock functions for integration (in a real app, these would connect to actual services)
-const mockConnectIntegration = async (type: IntegrationType): Promise<boolean> => {
-  // Simulate API call delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  return true;
-};
 
 export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<Message[]>([
@@ -249,22 +50,42 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ]);
   const [isThinking, setIsThinking] = useState(false);
   const [isTalking, setIsTalking] = useState(false);
-  const [mood, setMood] = useState<'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused'>('neutral');
+  const [mood, setMood] = useState<BellaMood>('neutral');
+  
+  // Enhanced TTS options for a more confident, articulate U.S. female voice in her mid-20s
   const [ttsOptions, setTTSOptions] = useState<TTSOptions>({
-    voice: 'bella_premium',
-    pitch: 1.1,
-    rate: 1.0,
+    voice: 'bella_professional', // Changed from bella_premium to bella_professional for more confidence
+    pitch: 1.05, // Slightly higher for a younger sound
+    rate: 1.0,  // Standard rate for articulate speech
     volume: 0.7,
     enhancedQuality: true,
+    // New properties to better define the voice
+    accent: 'american',
+    age: 'mid-twenties',
+    style: 'confident-professional',
+    personality: 'approachable-charming'
   });
-  const [aiSettings, setAISettings] = useState<AIProviderSettings>(defaultAISettings);
-  const [activeProvider, setActiveProvider] = useState<AIProvider>('openrouter');
+  
+  // Load AI settings from localStorage or use defaults
+  const loadedAISettings = localStorage.getItem('bella_ai_settings');
+  const initialAISettings = loadedAISettings ? JSON.parse(loadedAISettings) : defaultAISettings;
+  const [aiSettings, setAISettings] = useState<AIProviderSettings>(initialAISettings);
+  
+  // Load Google API settings from localStorage
+  const [googleAPISettings, setGoogleAPISettings] = useState<GoogleAPISettings>(getGoogleAPISettings());
+  
+  // Load active provider from localStorage or use default
+  const savedProvider = localStorage.getItem('bella_active_provider');
+  const [activeProvider, setActiveProvider] = useState<AIProvider>(savedProvider as AIProvider || 'openrouter');
+  
+  // Integrations state
   const [integrations, setIntegrations] = useState<Record<IntegrationType, Integration>>({
     googleCalendar: { type: 'googleCalendar', isConnected: false },
     googleContacts: { type: 'googleContacts', isConnected: false },
     gmail: { type: 'gmail', isConnected: false },
     outlookEmail: { type: 'outlookEmail', isConnected: false }
   });
+  
   const [userPreferences, setUserPreferences] = useState<UserPreference[]>([]);
   const { toast } = useToast();
   
@@ -275,66 +96,15 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
   
-  const determineMood = (intentResult: IntentResult): 'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused' => {
-    // Use the detected primary emotion if available
-    if (intentResult.primaryEmotion) {
-      switch (intentResult.primaryEmotion) {
-        case 'happy': return 'happy';
-        case 'sad': return 'concerned';
-        case 'angry': return 'concerned';
-        case 'surprised': return 'surprised';
-        case 'confused': return 'confused';
-        case 'neutral': return 'neutral';
-        case 'excited': return 'excited';
-        case 'concerned': return 'concerned';
-      }
-    }
-    
-    // Fallback to intent-based mood determination
-    const { topIntent, text } = intentResult;
-    
-    switch (topIntent) {
-      case 'greeting':
-        return 'happy';
-      case 'joke':
-        return 'excited';
-      case 'farewell':
-        return 'happy';
-      case 'gratitude':
-        return 'happy';
-      case 'help':
-        return 'concerned';
-      case 'search':
-        return 'thinking';
-      case 'reminder':
-      case 'calendar':
-        return 'thinking';
-      case 'weather':
-        return 'neutral';
-      case 'email':
-      case 'contacts':
-        return 'thinking';
-      case 'learning_preference':
-        return 'happy';
-      default:
-        // For other intents, check for question marks or keywords
-        if (text.includes('?')) return 'curious';
-        if (text.toLowerCase().includes('how') || 
-            text.toLowerCase().includes('why') || 
-            text.toLowerCase().includes('what')) return 'thinking';
-        if (text.toLowerCase().includes('wow') || 
-            text.toLowerCase().includes('amazing') || 
-            text.toLowerCase().includes('awesome') ||
-            text.toLowerCase().includes('great')) return 'excited';
-        if (text.toLowerCase().includes('confused') || 
-            text.toLowerCase().includes('i don\'t understand') || 
-            text.toLowerCase().includes('what do you mean')) return 'confused';
-        if (text.toLowerCase().includes('worried') || 
-            text.toLowerCase().includes('concerned') || 
-            text.toLowerCase().includes('problem')) return 'concerned';
-        return 'neutral';
-    }
-  };
+  // Save AI settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('bella_ai_settings', JSON.stringify(aiSettings));
+  }, [aiSettings]);
+  
+  // Save active provider to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('bella_active_provider', activeProvider);
+  }, [activeProvider]);
   
   const connectIntegration = useCallback(async (type: IntegrationType) => {
     try {
@@ -448,30 +218,32 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
     
-    // Get the model information
+    // Get the model information for response generation
     let responseContent = '';
     
     try {
       if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
         // In a real app, this would call an edge function to protect the API key
-        const modelInfo = getModelById(aiSettings.openRouter.selectedModel);
+        const selectedModel = aiSettings.openRouter.selectedModel;
         
-        console.log(`Using OpenRouter with model: ${modelInfo?.name || aiSettings.openRouter.selectedModel}`);
+        console.log(`Using OpenRouter with model: ${selectedModel}`);
         // Simulate response generation
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // For demo purposes, get a canned response
-        responseContent = getIntentBasedResponse(intentResult);
+        // Get a response that includes info about the selected model
+        responseContent = getIntentBasedResponse(intentResult, activeProvider, selectedModel);
       } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
         // In a real app, this would call the n8n webhook
-        console.log(`Using n8n workflow: ${aiSettings.n8n.selectedWorkflow}`);
+        const selectedWorkflow = aiSettings.n8n.selectedWorkflow;
+        console.log(`Using n8n workflow: ${selectedWorkflow}`);
+        
         // Simulate response generation
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // For demo purposes, get a canned response
-        responseContent = getIntentBasedResponse(intentResult);
+        // Get a response that includes info about using n8n
+        responseContent = getIntentBasedResponse(intentResult, activeProvider, aiSettings.n8n.selectedWorkflow);
       } else {
         // Fallback to default responses
         console.log('Using built-in response generator');
@@ -483,7 +255,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const responseTime = baseTime + (complexityFactor * 500) + (Math.random() * 1000);
         
         await new Promise(resolve => setTimeout(resolve, responseTime));
-        responseContent = getIntentBasedResponse(intentResult);
+        responseContent = getIntentBasedResponse(intentResult, 'default', 'bella-default');
       }
       
       // Check for integration-specific actions
@@ -537,7 +309,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }, 2000);
       }, speakingTime);
     }
-  }, [activeProvider, aiSettings, determineMood, toast, integrations, addUserPreference]);
+  }, [activeProvider, aiSettings, toast, integrations, addUserPreference]);
   
   const clearMessages = useCallback(() => {
     setMessages([
@@ -577,6 +349,22 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [toast]);
   
+  const updateGoogleAPISettings = useCallback((settings: Partial<GoogleAPISettings>) => {
+    const updatedSettings = { ...googleAPISettings, ...settings };
+    setGoogleAPISettings(updatedSettings);
+    saveGoogleAPISettings(updatedSettings);
+    
+    toast({
+      title: "Google API settings updated",
+      description: "Your Google API settings have been saved.",
+    });
+  }, [googleAPISettings, toast]);
+  
+  const setActiveProviderWithStorage = useCallback((provider: AIProvider) => {
+    setActiveProvider(provider);
+    localStorage.setItem('bella_active_provider', provider);
+  }, []);
+  
   return (
     <BellaContext.Provider value={{
       messages,
@@ -585,6 +373,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       mood,
       ttsOptions,
       aiSettings,
+      googleAPISettings,
       activeProvider,
       integrations,
       userPreferences,
@@ -592,7 +381,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       clearMessages,
       updateTTSOptions,
       updateAISettings,
-      setActiveProvider,
+      updateGoogleAPISettings,
+      setActiveProvider: setActiveProviderWithStorage,
       connectIntegration,
       disconnectIntegration,
       addUserPreference
