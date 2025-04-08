@@ -61,6 +61,10 @@ export const availableVoices = [
 // Used to track the current utterance for cancellation
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 
+// Track if voices are ready to be used
+let voicesReady = false;
+let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
 /**
  * Synthesize speech from text
  */
@@ -79,7 +83,32 @@ export const synthesizeSpeech = async (
 
       // Set voice based on options
       const voices = window.speechSynthesis.getVoices();
-      const selectedVoice = voices.find(voice => voice.name === options.voice) || voices[0];
+      
+      // Check if the requested voice exists
+      const requestedVoiceId = options.voice;
+      let selectedVoice = null;
+      
+      // First try to find by ID match (from our availableVoices)
+      const voiceInfo = availableVoices.find(v => v.id === requestedVoiceId);
+      
+      if (voiceInfo) {
+        // Try to find the voice in the browser's available voices
+        selectedVoice = voices.find(v => 
+          v.name === voiceInfo.name || 
+          v.name.includes(voiceInfo.name) || 
+          v.name === requestedVoiceId
+        );
+      }
+      
+      // If not found by name, try direct match or fallback to any voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.name === requestedVoiceId) || 
+                        voices.find(v => v.lang === 'en-US') || 
+                        voices[0];
+        
+        console.log(`Voice "${requestedVoiceId}" not found, using fallback: ${selectedVoice?.name}`);
+      }
+      
       utterance.voice = selectedVoice;
 
       // Set other speech properties
@@ -91,20 +120,43 @@ export const synthesizeSpeech = async (
       const words = text.split(/\s+/).length;
       const durationInSeconds = (words / 150) * 60;
 
+      // Fallback timer in case onend doesn't fire (which happens sometimes)
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
+      
+      fallbackTimer = setTimeout(() => {
+        if (currentUtterance === utterance) {
+          currentUtterance = null;
+          resolve({ duration: durationInSeconds });
+          console.log('Speech completion detected by fallback timer');
+        }
+      }, (durationInSeconds * 1000) + 2000); // Add 2 second buffer
+
       // Event handlers
       utterance.onend = () => {
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
         currentUtterance = null;
         resolve({ duration: durationInSeconds });
       };
 
       utterance.onerror = (event) => {
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
         currentUtterance = null;
+        console.error(`Speech synthesis error: ${event.error}`);
         reject(new Error(`Speech synthesis error: ${event.error}`));
       };
 
       // Start speaking
       window.speechSynthesis.speak(utterance);
     } catch (error) {
+      console.error('Speech synthesis failed with error:', error);
       reject(error);
     }
   });
@@ -117,7 +169,20 @@ export const cancelSpeech = () => {
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
     currentUtterance = null;
+    
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer);
+      fallbackTimer = null;
+    }
   }
+};
+
+/**
+ * Get voice by ID or name, with fallback
+ */
+export const getVoiceById = (voiceId: string): string => {
+  const voiceInfo = availableVoices.find(v => v.id === voiceId);
+  return voiceInfo ? voiceInfo.id : availableVoices[0].id;
 };
 
 /**
@@ -130,9 +195,24 @@ export const preloadVoices = async () => {
       if (window.speechSynthesis.getVoices().length === 0) {
         await new Promise<void>((resolve) => {
           window.speechSynthesis.onvoiceschanged = () => {
+            voicesReady = true;
             resolve();
           };
+          
+          // Fallback in case voices are already loaded or event doesn't fire
+          setTimeout(() => {
+            if (!voicesReady && window.speechSynthesis.getVoices().length > 0) {
+              voicesReady = true;
+              resolve();
+            } else if (!voicesReady) {
+              console.warn('Speech synthesis voices not loaded in expected time');
+              voicesReady = true;
+              resolve();
+            }
+          }, 2000);
         });
+      } else {
+        voicesReady = true;
       }
       return window.speechSynthesis.getVoices();
     }

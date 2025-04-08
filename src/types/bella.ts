@@ -17,6 +17,8 @@ export type Message = {
   timestamp: Date;
   sender: 'user' | 'bella';
   intentResult?: IntentResult;
+  feedbackRating?: number;
+  hasBeenReported?: boolean;
 };
 
 export interface AIModel {
@@ -108,6 +110,28 @@ export type IntentResult = {
   };
 };
 
+export interface FeedbackData {
+  messageId: string;
+  rating: number;
+  comment?: string;
+  timestamp: Date;
+  category?: 'helpful' | 'accuracy' | 'safety' | 'other';
+}
+
+export interface PrivacySettings {
+  saveConversationHistory: boolean;
+  useDataForImprovement: boolean;
+  dataRetentionPeriod: number; // in days
+  allowThirdPartyProcessing: boolean;
+}
+
+export interface SafetyGuardrails {
+  contentFiltering: boolean;
+  sensitiveTopicsBlocked: string[];
+  maxPersonalDataRetention: number; // in days
+  allowExplicitContent: boolean;
+}
+
 export interface BellaContextType {
   messages: Message[];
   isThinking: boolean;
@@ -127,4 +151,10 @@ export interface BellaContextType {
   updateOfflineAgent: (agentId: string, settings: Partial<OfflineAgent>) => void;
   setActiveProvider: (provider: 'openai' | 'openrouter' | 'anthropic' | 'n8n') => void;
   updateIntegration: (key: string, settings: Partial<Integration>) => void;
+  submitFeedback: (feedback: FeedbackData) => void;
+  reportMessage: (messageId: string, reason: string) => void;
+  updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
+  updateSafetyGuardrails: (settings: Partial<SafetyGuardrails>) => void;
+  privacySettings: PrivacySettings;
+  safetyGuardrails: SafetyGuardrails;
 }
