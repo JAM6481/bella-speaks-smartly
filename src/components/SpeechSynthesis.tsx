@@ -18,7 +18,7 @@ const SpeechSynthesis: React.FC<SpeechSynthesisProps> = ({
   autoPlay = false,
   onStart,
   onEnd,
-  options = {},
+  options = { voice: 'en-US-Neural2-F', volume: 0.7 },
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

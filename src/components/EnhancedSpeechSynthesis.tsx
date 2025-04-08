@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Volume, VolumeX, Play, Square, SkipForward, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { synthesizeSpeech, cancelSpeech, TTSOptions } from '@/utils/ttsService';
+import { synthesizeSpeech, cancelSpeech, TTSOptions, availableVoices } from '@/utils/ttsService';
 import {
   Tooltip,
   TooltipContent,
@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { availableVoices } from '@/utils/ttsService';
 
 interface EnhancedSpeechSynthesisProps {
   text: string;
@@ -41,7 +40,7 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
   autoPlay = false,
   onStart,
   onEnd,
-  options = {},
+  options = { voice: 'en-US-Neural2-F', volume: 0.7 },
   onOptionsChange,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -70,8 +69,10 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
       
       // Start speech synthesis
       const speechOptions: TTSOptions = {
-        ...options,
+        voice: options.voice,
         volume: isMuted ? 0 : volume[0] / 100,
+        rate: options.rate,
+        pitch: options.pitch,
         enhancedQuality
       };
       
@@ -315,7 +316,7 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="voice-select">Voice</Label>
                 <Select 
-                  value={options.voice || 'bella_premium'}
+                  value={options.voice}
                   onValueChange={handleVoiceChange}
                 >
                   <SelectTrigger id="voice-select">
@@ -330,7 +331,7 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {availableVoices.find(v => v.id === (options.voice || 'bella_premium'))?.description}
+                  {availableVoices.find(v => v.id === options.voice)?.description}
                 </p>
               </div>
               

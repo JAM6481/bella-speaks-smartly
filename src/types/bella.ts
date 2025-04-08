@@ -103,6 +103,7 @@ export type IntentResult = {
   primaryEmotion?: string;
   contextualMemory?: {
     userPreferences?: Record<string, any>;
+    recentTopics?: string[];
   };
 };
 

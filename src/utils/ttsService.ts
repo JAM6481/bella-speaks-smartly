@@ -1,13 +1,8 @@
 
 // TTS Service for Bella AI Assistant
+import { TTSOptions } from '@/types/bella';
 
-export type TTSOptions = {
-  voice: string;
-  volume: number;
-  rate?: number;
-  pitch?: number;
-  enhancedQuality?: boolean;
-};
+export { TTSOptions };
 
 export const availableVoices = [
   {

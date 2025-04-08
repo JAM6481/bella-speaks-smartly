@@ -1,3 +1,4 @@
+
 import { IntentResult } from '@/types/bella';
 
 // Enhanced responses for a more premium, helpful experience
@@ -21,7 +22,7 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
   const recentTopics = contextualMemory?.recentTopics || [];
   
   // Add information about the AI model being used
-  const modelInfo = activeProvider === 'openrouter' ? 
+  const modelInfo = activeProvider === 'openRouter' ? 
     `I'm using the ${selectedModel.split('/')[1]?.split('-').slice(0, 2).join(' ')} model. ` : 
     '';
   
@@ -53,7 +54,9 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
       return `${greeting}! ${modelInfo}I'm Bella, your premium AI assistant. I'm designed to help with information, tasks, and conversation. How can I make your day better?`;
     
     case 'weather':
-      const locations = entities.filter(e => e.entity === 'location');
+      const locations = entities && Array.isArray(entities) 
+        ? entities.filter(e => e.entity === 'location')
+        : [];
       const weatherLocation = locations.length > 0 ? locations[0].value : 'your location';
       
       return `${personalizedPrefix}${modelInfo}Based on the latest data for ${weatherLocation}, it's currently 72°F with clear skies. The forecast shows a high of 78°F with a 5% chance of precipitation. Would you like more detailed weather information or a forecast for the coming days?`;
@@ -62,9 +65,9 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
       let reminderResponse = "I'll set that reminder for you.";
       
       // Check for time/date entities
-      const timeEntity = entities.find(e => e.entity === 'time');
-      const dateEntity = entities.find(e => e.entity === 'date');
-      const taskEntity = entities.find(e => e.entity === 'task');
+      const timeEntity = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'time') : null;
+      const dateEntity = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'date') : null;
+      const taskEntity = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'task') : null;
       
       if (timeEntity && dateEntity) {
         reminderResponse = `I've set a reminder for ${dateEntity.value} at ${timeEntity.value}.`;
@@ -81,10 +84,10 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
       return reminderResponse + " Is there anything else you'd like me to remind you about or any details you'd like to add?";
     
     case 'calendar':
-      const eventTitle = entities.find(e => e.entity === 'event_title');
-      const eventDate = entities.find(e => e.entity === 'date');
-      const eventTime = entities.find(e => e.entity === 'time');
-      const attendees = entities.find(e => e.entity === 'attendees');
+      const eventTitle = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'event_title') : null;
+      const eventDate = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'date') : null;
+      const eventTime = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'time') : null;
+      const attendees = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'attendees') : null;
       
       if (eventTitle) {
         let calendarResponse = `I'll add "${eventTitle.value}" to your calendar`;
@@ -107,11 +110,11 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
       return "I can help you manage your calendar. Would you like to add an event, check your schedule, or sync with your Google Calendar?";
     
     case 'email':
-      const emailEntity = entities.find(e => e.entity === 'email');
+      const emailEntity = entities && Array.isArray(entities) ? entities.find(e => e.entity === 'email') : null;
       
-      if (text.toLowerCase().includes('check') || text.toLowerCase().includes('read')) {
+      if (text && text.toLowerCase().includes('check') || text && text.toLowerCase().includes('read')) {
         return `${topicReference}I can check your emails for you. Would you like me to show your most recent unread messages?`;
-      } else if (text.toLowerCase().includes('send') || text.toLowerCase().includes('write') || text.toLowerCase().includes('compose')) {
+      } else if (text && text.toLowerCase().includes('send') || text && text.toLowerCase().includes('write') || text && text.toLowerCase().includes('compose')) {
         let emailResponse = "I can help you compose an email";
         
         if (emailEntity) {
@@ -124,9 +127,9 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
       return "I can help you with your emails. Would you like to check your inbox or compose a new message?";
     
     case 'contacts':
-      if (text.toLowerCase().includes('find') || text.toLowerCase().includes('search')) {
+      if (text && text.toLowerCase().includes('find') || text && text.toLowerCase().includes('search')) {
         return "I can search your contacts for you. Who would you like to find?";
-      } else if (text.toLowerCase().includes('add')) {
+      } else if (text && text.toLowerCase().includes('add')) {
         return "I can help you add a new contact. Please provide the name and contact information.";
       }
       
@@ -134,7 +137,7 @@ export const getIntentBasedResponse = (intentResult: IntentResult, activeProvide
     
     case 'search':
       // Detect the search topic for a more personalized response
-      const searchTopic = text.replace(/search for|find|look up|google|information about/gi, '').trim();
+      const searchTopic = text ? text.replace(/search for|find|look up|google|information about/gi, '').trim() : '';
       if (searchTopic) {
         return `${personalizedPrefix}I've found some information about "${searchTopic}". Would you like me to summarize the key points or would you prefer more detailed information?`;
       }
