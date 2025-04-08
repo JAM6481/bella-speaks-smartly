@@ -14,6 +14,8 @@ export type Message = {
   content: string;
   isUser: boolean;
   timestamp: Date;
+  sender?: 'user' | 'bella';
+  intentResult?: IntentResult;
 };
 
 export interface AIModel {
@@ -36,6 +38,7 @@ export interface AIProvider {
 export interface N8nSettings {
   webhookUrl: string;
   apiKey?: string;
+  selectedWorkflow?: string;
 }
 
 export interface AISettings {
@@ -78,20 +81,29 @@ export interface Integrations {
   [key: string]: Integration;
 }
 
-export type BellaMood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
+export type BellaMood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited' | 'surprised' | 'concerned' | 'curious';
 
-export type AgentType = 'researcher' | 'writer' | 'analyst' | 'creative' | 'assistant';
+export type AgentType = 'researcher' | 'writer' | 'analyst' | 'creative' | 'assistant' | 'general' | 'business' | 'coding' | 'medical' | 'finance' | 'social';
 
 export type UserPreference = {
-  darkMode: boolean;
-  voiceOutput: boolean;
-  autoSuggest: boolean;
+  key?: string;
+  value?: string | number | boolean;
+  timestamp?: Date;
+  darkMode?: boolean;
+  voiceOutput?: boolean;
+  autoSuggest?: boolean;
 };
 
 export type IntentResult = {
   intent: string;
   confidence: number;
   entities: Record<string, any>;
+  topIntent?: string;
+  text?: string;
+  primaryEmotion?: string;
+  contextualMemory?: {
+    userPreferences?: Record<string, any>;
+  };
 };
 
 export interface BellaContextType {
