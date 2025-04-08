@@ -31,6 +31,13 @@ import {
   TabsTrigger
 } from "@/components/ui/tabs";
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import BellaAvatar from '@/components/BellaAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import AISettings from '@/components/AISettings';
