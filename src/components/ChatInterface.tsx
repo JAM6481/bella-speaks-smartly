@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, SendHorizontal, Wand, Star, Trophy } from 'lucide-react';
@@ -45,11 +46,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       continuous: true,
       onResult: (text) => setRecognizedText(text),
       onFinalResult: (text) => {
-        if (isContinuousListening && text.trim()) {
+        if (text.trim()) {
           onSendMessage(text.trim());
           resetTranscript();
+          if (!isContinuousListening) {
+            setIsRecording(false);
+          }
         }
-      }
+      },
+      autoStopTimeout: 2000 // Auto-stop after 2 seconds of silence
     });
   
   const scrollToBottom = () => {
@@ -96,7 +101,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         title: isContinuousListening ? "Continuous listening mode" : "Listening...",
         description: isContinuousListening 
           ? "Bella will listen and respond continuously. Click again to stop." 
-          : "Speak clearly to interact with Bella.",
+          : "Speak clearly and pause when done - Bella will automatically detect when you finish speaking.",
       });
     } else {
       setIsRecording(false);
@@ -128,7 +133,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       title: !isContinuousListening ? "Continuous mode enabled" : "Continuous mode disabled",
       description: !isContinuousListening 
         ? "Bella will listen and respond continuously when you start recording." 
-        : "Bella will wait for you to finish speaking before processing.",
+        : "Bella will automatically detect when you finish speaking before processing.",
     });
   };
 
@@ -182,7 +187,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 : 'border-blue-500/50 text-blue-700 hover:text-blue-800'
             }`}
           >
-            {isContinuousListening ? "Continuous" : "Single Mode"}
+            {isContinuousListening ? "Continuous" : "Auto Detect"}
           </Button>
           
           <Button

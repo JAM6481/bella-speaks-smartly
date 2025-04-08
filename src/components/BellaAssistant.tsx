@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, MessageSquare, LayoutDashboard, Bot, Network } from 'lucide-react';
+import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, Bot, Network } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -125,10 +126,6 @@ const BellaAssistant: React.FC = () => {
   const handleVolumeChange = (value: number[]) => {
     setVolume(value);
     updateTTSOptions({ volume: value[0] / 100 });
-    toast({
-      title: "Volume adjusted",
-      description: `Volume set to ${value[0]}%`,
-    });
   };
   
   const handlePitchChange = (value: number[]) => {
@@ -504,36 +501,6 @@ const BellaAssistant: React.FC = () => {
           />
         </motion.div>
       </main>
-      
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.6 }}
-        className="w-full py-6"
-      >
-        <div className="flex justify-center space-x-6">
-          <motion.div whileHover={{ scale: 1.05 }} className="text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-2">
-              <MessageSquare className="h-6 w-6 text-blue-500" />
-            </div>
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Natural Conversations</p>
-          </motion.div>
-          
-          <motion.div whileHover={{ scale: 1.05 }} className="text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-2">
-              <LayoutDashboard className="h-6 w-6 text-blue-500" />
-            </div>
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Smart Interface</p>
-          </motion.div>
-          
-          <motion.div whileHover={{ scale: 1.05 }} className="text-center">
-            <div className="w-12 h-12 mx-auto rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mb-2">
-              <Bot className="h-6 w-6 text-blue-500" />
-            </div>
-            <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Advanced AI Models</p>
-          </motion.div>
-        </div>
-      </motion.div>
       
       <motion.footer
         initial={{ y: 20, opacity: 0 }}

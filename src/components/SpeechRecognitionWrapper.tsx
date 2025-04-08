@@ -7,6 +7,7 @@ interface SpeechRecognitionOptions {
   onResult?: (text: string) => void;
   onFinalResult?: (text: string) => void;
   lang?: string;
+  autoStopTimeout?: number; // Time in ms to automatically stop after silence
 }
 
 export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {}) => {
@@ -14,6 +15,10 @@ export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {})
   const [transcript, setTranscript] = useState('');
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState(false);
+  const [lastSpeechTime, setLastSpeechTime] = useState<number>(0);
+  const [autoStopTimeoutId, setAutoStopTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  
+  const autoStopDuration = options.autoStopTimeout || 1500; // Default to 1.5 seconds of silence
 
   // Initialize speech recognition on component mount
   useEffect(() => {
@@ -29,6 +34,7 @@ export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {})
         const current = event.resultIndex;
         const transcript = event.results[current][0].transcript;
         setTranscript(transcript);
+        setLastSpeechTime(Date.now());
         
         if (options.onResult) {
           options.onResult(transcript);
@@ -54,6 +60,11 @@ export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {})
         }
       };
       
+      // Add an onspeechend event handler to detect when user stops speaking
+      recognitionInstance.onspeechend = () => {
+        setLastSpeechTime(Date.now());
+      };
+      
       setRecognition(recognitionInstance);
       setBrowserSupportsSpeechRecognition(true);
     }
@@ -67,13 +78,52 @@ export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {})
           recognition.stop();
         }
       }
+      
+      // Clear any existing auto-stop timeout
+      if (autoStopTimeoutId) {
+        clearTimeout(autoStopTimeoutId);
+      }
     };
   }, []);
+
+  // Handle auto-stopping after silence
+  useEffect(() => {
+    if (isListening && lastSpeechTime > 0) {
+      // Clear any existing timeout
+      if (autoStopTimeoutId) {
+        clearTimeout(autoStopTimeoutId);
+      }
+      
+      // Set a new timeout to check for silence
+      const timeoutId = setTimeout(() => {
+        const silenceDuration = Date.now() - lastSpeechTime;
+        
+        // If there's been silence for the auto-stop duration, stop listening
+        if (silenceDuration >= autoStopDuration) {
+          stopListening();
+          
+          // If we have transcript and a final result callback, trigger it
+          if (transcript && options.onFinalResult) {
+            options.onFinalResult(transcript);
+          }
+        }
+      }, autoStopDuration);
+      
+      setAutoStopTimeoutId(timeoutId);
+    }
+    
+    return () => {
+      if (autoStopTimeoutId) {
+        clearTimeout(autoStopTimeoutId);
+      }
+    };
+  }, [isListening, lastSpeechTime, transcript]);
 
   const startListening = useCallback(() => {
     if (recognition) {
       setIsListening(true);
       setTranscript('');
+      setLastSpeechTime(Date.now());
       recognition.start();
     }
   }, [recognition]);
@@ -83,7 +133,13 @@ export const SpeechRecognitionWrapper = (options: SpeechRecognitionOptions = {})
       setIsListening(false);
       recognition.stop();
     }
-  }, [recognition]);
+    
+    // Clear any existing auto-stop timeout
+    if (autoStopTimeoutId) {
+      clearTimeout(autoStopTimeoutId);
+      setAutoStopTimeoutId(null);
+    }
+  }, [recognition, autoStopTimeoutId]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
