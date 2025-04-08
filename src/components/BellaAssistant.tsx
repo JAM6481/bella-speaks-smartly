@@ -41,6 +41,7 @@ import {
 import BellaAvatar from '@/components/BellaAvatar';
 import ChatInterface from '@/components/ChatInterface';
 import AISettings from '@/components/AISettings';
+import IntegrationsPanel from '@/components/IntegrationsPanel';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
@@ -57,7 +58,8 @@ const BellaAssistant: React.FC = () => {
     clearMessages, 
     updateTTSOptions,
     aiSettings,
-    activeProvider
+    activeProvider,
+    integrations
   } = useBella();
   
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -184,6 +186,9 @@ const BellaAssistant: React.FC = () => {
     }
     return null;
   };
+  
+  // Count connected integrations for badge
+  const connectedIntegrationsCount = Object.values(integrations).filter(i => i.isConnected).length;
 
   return (
     <div className={`min-h-screen bella-gradient-bg flex flex-col items-center`}>
@@ -231,9 +236,14 @@ const BellaAssistant: React.FC = () => {
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="rounded-full hover:bg-blue-500/10"
+                className="rounded-full hover:bg-blue-500/10 relative"
               >
                 <Sliders className="h-5 w-5 text-blue-500" />
+                {connectedIntegrationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                    {connectedIntegrationsCount}
+                  </span>
+                )}
               </Button>
             </SheetTrigger>
             <SheetContent className="overflow-y-auto">
@@ -245,9 +255,17 @@ const BellaAssistant: React.FC = () => {
               </SheetHeader>
               
               <Tabs defaultValue="voice" className="mt-6">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="voice">Voice</TabsTrigger>
                   <TabsTrigger value="ai">AI Model</TabsTrigger>
+                  <TabsTrigger value="integrations">
+                    Integrations
+                    {connectedIntegrationsCount > 0 && (
+                      <span className="ml-1 bg-green-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                        {connectedIntegrationsCount}
+                      </span>
+                    )}
+                  </TabsTrigger>
                   <TabsTrigger value="interface">Interface</TabsTrigger>
                 </TabsList>
                 
@@ -357,6 +375,10 @@ const BellaAssistant: React.FC = () => {
                 
                 <TabsContent value="ai" className="mt-4">
                   <AISettings />
+                </TabsContent>
+                
+                <TabsContent value="integrations" className="mt-4">
+                  <IntegrationsPanel />
                 </TabsContent>
                 
                 <TabsContent value="interface" className="mt-4 space-y-8">

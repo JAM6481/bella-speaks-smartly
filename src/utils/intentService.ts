@@ -1,7 +1,7 @@
 
 /**
  * Enhanced intent recognition service for Bella
- * This provides sophisticated natural language understanding
+ * This provides sophisticated natural language understanding with emotion detection
  */
 
 export interface Intent {
@@ -16,11 +16,22 @@ export interface Entity {
   end: number;
 }
 
+export interface Emotion {
+  type: 'happy' | 'sad' | 'angry' | 'surprised' | 'confused' | 'neutral' | 'excited' | 'concerned';
+  confidence: number;
+}
+
 export interface IntentResult {
   text: string;
   intents: Intent[];
   entities: Entity[];
+  emotions: Emotion[];
   topIntent: string;
+  primaryEmotion: Emotion['type'];
+  contextualMemory?: {
+    recentTopics?: string[];
+    userPreferences?: Record<string, any>;
+  };
 }
 
 // Define comprehensive intents with their trigger patterns
@@ -73,7 +84,131 @@ const intentDefinitions = [
     name: 'recommendation',
     triggers: ['recommend', 'suggestion', 'suggest', 'what should', 'advise', 'proposal', 'options', 'alternatives'],
   },
+  // New intents for integration with Google services and Outlook
+  {
+    name: 'calendar',
+    triggers: ['calendar', 'schedule', 'event', 'appointment', 'meeting', 'sync calendar', 'google calendar', 'outlook calendar', 'add to calendar', 'check calendar'],
+  },
+  {
+    name: 'email',
+    triggers: ['email', 'mail', 'message', 'send email', 'compose email', 'check email', 'inbox', 'google mail', 'gmail', 'outlook', 'outlook email'],
+  },
+  {
+    name: 'contacts',
+    triggers: ['contacts', 'contact', 'address book', 'people', 'google contacts', 'phone number', 'email address', 'find contact', 'search contact'],
+  },
+  {
+    name: 'learning_preference',
+    triggers: ['remember this', 'i like', 'i prefer', 'my favorite', 'i don\'t like', 'learn about me', 'remember my preference', 'remember that i'],
+  },
 ];
+
+// Emotion detection patterns
+const emotionPatterns = [
+  {
+    type: 'happy',
+    patterns: [
+      /\b(?:happy|glad|delighted|pleased|joy|joyful|excellent|wonderful|great|fantastic|amazing)\b/i,
+      /\b(?:😊|😃|😄|😁|🙂|😀|🥰|😍)\b/,
+      /\bthank you\b/i
+    ]
+  },
+  {
+    type: 'sad',
+    patterns: [
+      /\b(?:sad|unhappy|depressed|disappointed|sorry|regret|miss|missing|lonely|upset)\b/i,
+      /\b(?:😔|😢|😭|😞|😥|☹️|🙁)\b/
+    ]
+  },
+  {
+    type: 'angry',
+    patterns: [
+      /\b(?:angry|mad|furious|annoyed|irritated|frustrated|hate|awful|terrible)\b/i,
+      /\b(?:😠|😡|🤬|😤|👿)\b/
+    ]
+  },
+  {
+    type: 'surprised',
+    patterns: [
+      /\b(?:surprised|wow|whoa|oh my|unexpected|unbelievable|amazing|astonished|astonishing)\b/i,
+      /\b(?:😲|😮|😯|😱|😵|🤯)\b/,
+      /\?!+/
+    ]
+  },
+  {
+    type: 'confused',
+    patterns: [
+      /\b(?:confused|don't understand|unsure|unclear|puzzled|lost|perplexed|bewildered)\b/i,
+      /\b(?:🤔|😕|😟|❓|🤨)\b/,
+      /\?{2,}/
+    ]
+  },
+  {
+    type: 'excited',
+    patterns: [
+      /\b(?:excited|thrilled|eager|can't wait|looking forward|pumped)\b/i,
+      /\b(?:🤩|😆|🎉|✨|🔥|💯)\b/,
+      /!{2,}/
+    ]
+  },
+  {
+    type: 'concerned',
+    patterns: [
+      /\b(?:worried|concerned|anxious|nervous|fear|afraid|scared|apprehensive)\b/i,
+      /\b(?:😟|😧|😨|😰|😬)\b/
+    ]
+  }
+];
+
+// User preferences storage - would be persistent in a real app
+let userPreferences: Record<string, any> = {};
+let recentTopics: string[] = [];
+
+// Learn from user interactions
+const learnPreference = (text: string, entities: Entity[]): void => {
+  // Check for preference statements
+  const preferencePatterns = [
+    {
+      pattern: /\bi (?:like|love|enjoy|prefer) (.*?)(?:\.|\,|\!|\?|$)/i,
+      type: 'like'
+    },
+    {
+      pattern: /\bi (?:dislike|hate|don't like|do not like) (.*?)(?:\.|\,|\!|\?|$)/i,
+      type: 'dislike'
+    },
+    {
+      pattern: /\bmy favorite (.*?) is (.*?)(?:\.|\,|\!|\?|$)/i,
+      type: 'favorite'
+    },
+    {
+      pattern: /\bremember (?:that )i (.*?)(?:\.|\,|\!|\?|$)/i,
+      type: 'remember'
+    }
+  ];
+
+  // Extract preferences
+  for (const { pattern, type } of preferencePatterns) {
+    const match = pattern.exec(text);
+    if (match) {
+      if (type === 'favorite' && match[1] && match[2]) {
+        userPreferences[`favorite_${match[1].trim()}`] = match[2].trim();
+      } else if (match[1]) {
+        userPreferences[type] = match[1].trim();
+      }
+    }
+  }
+
+  // Learn from entities too
+  if (entities.length > 0) {
+    entities.forEach(entity => {
+      if (entity.entity === 'topic' || entity.entity === 'query') {
+        // Track recent topics for contextual awareness
+        recentTopics.unshift(entity.value);
+        if (recentTopics.length > 5) recentTopics.pop(); // Keep last 5 topics
+      }
+    });
+  }
+};
 
 /**
  * Advanced entity detection with improved pattern matching
@@ -144,6 +279,18 @@ const detectEntities = (text: string): Entity[] => {
     }
   });
   
+  // Detect email addresses
+  const emailPattern = /\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g;
+  let emailMatch;
+  while ((emailMatch = emailPattern.exec(text)) !== null) {
+    entities.push({
+      entity: 'email',
+      value: emailMatch[0],
+      start: emailMatch.index,
+      end: emailMatch.index + emailMatch[0].length,
+    });
+  }
+  
   // Detect task content for reminders
   if (lowerText.includes('remind') || lowerText.includes('reminder') || lowerText.includes('schedule')) {
     // Look for content after "to" or "about" or between "me" and "at/on/tomorrow/etc"
@@ -176,8 +323,89 @@ const detectEntities = (text: string): Entity[] => {
       });
     }
   }
+
+  // Detect meeting/event details
+  if (lowerText.includes('schedule') || lowerText.includes('meeting') || lowerText.includes('calendar') || lowerText.includes('appointment')) {
+    // Extract event title
+    const eventPattern = /(?:schedule|add|create|set up) (?:a|an)? (meeting|call|appointment|event|reminder) (?:about|for|with)? ([^.,;!?]*)/i;
+    const eventMatch = eventPattern.exec(text);
+    if (eventMatch && eventMatch[2]) {
+      const eventTitle = eventMatch[2].trim();
+      entities.push({
+        entity: 'event_title',
+        value: eventTitle,
+        start: eventMatch.index + eventMatch[0].indexOf(eventTitle),
+        end: eventMatch.index + eventMatch[0].indexOf(eventTitle) + eventTitle.length,
+      });
+    }
+    
+    // Extract attendees
+    const attendeesPattern = /(?:with|including) ([^.,;!?]*?)(?:on|at|tomorrow|next|this|in|\.|$)/i;
+    const attendeesMatch = attendeesPattern.exec(text);
+    if (attendeesMatch && attendeesMatch[1]) {
+      const attendees = attendeesMatch[1].trim();
+      entities.push({
+        entity: 'attendees',
+        value: attendees,
+        start: attendeesMatch.index + attendeesMatch[0].indexOf(attendees),
+        end: attendeesMatch.index + attendeesMatch[0].indexOf(attendees) + attendees.length,
+      });
+    }
+  }
   
   return entities;
+};
+
+/**
+ * Detect emotions in text
+ */
+const detectEmotions = (text: string): Emotion[] => {
+  const emotions: Emotion[] = [];
+  let highestConfidence = 0;
+  let neutralConfidence = 0.2; // Default neutral confidence
+  
+  // Check for each emotion pattern
+  for (const emotion of emotionPatterns) {
+    let confidence = 0;
+    let matches = 0;
+    
+    // Check each pattern for this emotion
+    for (const pattern of emotion.patterns) {
+      const patternMatches = (text.match(pattern) || []).length;
+      if (patternMatches > 0) {
+        matches += patternMatches;
+        // Increase confidence with each match
+        confidence = Math.min(0.9, confidence + 0.2 * patternMatches);
+      }
+    }
+    
+    if (confidence > 0) {
+      emotions.push({
+        type: emotion.type as Emotion['type'],
+        confidence
+      });
+      
+      // Track highest confidence for determining primary emotion
+      if (confidence > highestConfidence) {
+        highestConfidence = confidence;
+      }
+    }
+  }
+  
+  // If no strong emotions detected, add neutral with adjusted confidence
+  if (highestConfidence < 0.4) {
+    neutralConfidence = 0.6; // Stronger neutral if no other emotions are strong
+  } else {
+    neutralConfidence = Math.max(0.1, 0.4 - (highestConfidence * 0.2));
+  }
+  
+  emotions.push({
+    type: 'neutral',
+    confidence: neutralConfidence
+  });
+  
+  // Sort emotions by confidence (highest first)
+  return emotions.sort((a, b) => b.confidence - a.confidence);
 };
 
 /**
@@ -242,6 +470,12 @@ export const analyzeIntent = (text: string): IntentResult => {
   // Detect entities
   const entities = detectEntities(text);
   
+  // Detect emotions
+  const emotions = detectEmotions(text);
+  
+  // Learn from this interaction
+  learnPreference(text, entities);
+  
   // If no intents were identified, use a fallback intent
   if (intents.length === 0) {
     intents.push({
@@ -254,6 +488,12 @@ export const analyzeIntent = (text: string): IntentResult => {
     text,
     intents,
     entities,
+    emotions,
     topIntent: intents[0].name,
+    primaryEmotion: emotions[0].type,
+    contextualMemory: {
+      recentTopics,
+      userPreferences
+    }
   };
 };
