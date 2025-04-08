@@ -40,7 +40,7 @@ export const openRouterModels: AIModel[] = [
     id: 'google/gemini-pro',
     name: 'Gemini Pro',
     provider: 'openrouter',
-    description: 'Google's most capable model for text and reasoning tasks',
+    description: 'Google\'s most capable model for text and reasoning tasks',
     contextLength: 32000,
     isAvailable: true
   },
