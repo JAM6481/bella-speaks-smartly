@@ -12,9 +12,10 @@ import {
 import { mockConnectIntegration, saveGoogleAPISettings, getGoogleAPISettings, GoogleAPISettings } from '@/utils/integrationUtils';
 import { getIntentBasedResponse } from '@/utils/responseGenerator';
 import { determineMood } from '@/utils/moodUtils';
-import { Message, UserPreference, IntegrationType, Integration, BellaMood, AgentType, OfflineAgent } from '@/types/bella';
+import type { Message, UserPreference, IntegrationType, Integration, BellaMood, AgentType, OfflineAgent } from '@/types/bella';
 
-export { IntegrationType };
+// Re-export types properly
+export type { IntegrationType } from '@/types/bella';
 
 export interface BellaContextType {
   messages: Message[];
@@ -286,14 +287,11 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // Get a response that includes info about the selected model and agent
+        // Fix the parameter count in getIntentBasedResponse
         responseContent = getIntentBasedResponse(
           intentResult, 
           activeProvider, 
-          selectedModel, 
-          activeAgent !== 'general' 
-            ? offlineAgents.find(agent => agent.type === activeAgent) 
-            : null
+          selectedModel
         );
       } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
         // In a real app, this would call the n8n webhook
@@ -304,14 +302,11 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // Get a response that includes info about using n8n and agent
+        // Fix the parameter count in getIntentBasedResponse
         responseContent = getIntentBasedResponse(
           intentResult, 
           activeProvider, 
-          aiSettings.n8n.selectedWorkflow,
-          activeAgent !== 'general' 
-            ? offlineAgents.find(agent => agent.type === activeAgent) 
-            : null
+          aiSettings.n8n.selectedWorkflow
         );
       } else {
         // Fallback to default responses

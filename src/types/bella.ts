@@ -1,4 +1,5 @@
 
+// Export with 'export type' for TypeScript isolatedModules compatibility
 export type IntegrationType = 'googleCalendar' | 'googleContacts' | 'gmail' | 'outlookEmail';
 
 export interface Integration {
