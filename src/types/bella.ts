@@ -59,20 +59,40 @@ export interface OfflineAgent {
   isEnabled: boolean;
   specialization: string;
   capabilities: string[];
+  type?: string;
+  isAvailable?: boolean;
+  expertise?: string[];
 }
 
-export type IntegrationType = 'supabase' | 'google' | 'zapier' | 'webhooks';
+export type IntegrationType = 'supabase' | 'google' | 'zapier' | 'webhooks' | 'googleCalendar' | 'googleContacts' | 'gmail' | 'outlookEmail';
 
 export interface Integration {
   type: IntegrationType;
   name: string;
   isConnected: boolean;
   settings: Record<string, any>;
+  lastSynced?: Date;
 }
 
 export interface Integrations {
   [key: string]: Integration;
 }
+
+export type BellaMood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
+
+export type AgentType = 'researcher' | 'writer' | 'analyst' | 'creative' | 'assistant';
+
+export type UserPreference = {
+  darkMode: boolean;
+  voiceOutput: boolean;
+  autoSuggest: boolean;
+};
+
+export type IntentResult = {
+  intent: string;
+  confidence: number;
+  entities: Record<string, any>;
+};
 
 export interface BellaContextType {
   messages: Message[];

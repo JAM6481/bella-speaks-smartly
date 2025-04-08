@@ -1,9 +1,13 @@
-// This is just a placeholder, as the actual ttsService.ts is read-only
-// and cannot be modified directly. This placeholder is present so 
-// our VoiceList component can import from this file.
 
-// New voices would normally be added here, but since we can't edit the file,
-// the existing voices from the read-only file will be used.
+// TTS Service for Bella AI Assistant
+
+export type TTSOptions = {
+  voice: string;
+  volume: number;
+  rate?: number;
+  pitch?: number;
+  enhancedQuality?: boolean;
+};
 
 export const availableVoices = [
   {
@@ -58,7 +62,71 @@ export const availableVoices = [
   }
 ];
 
-// Re-export preloadVoices to maintain compatibility
+// Used to track the current utterance for cancellation
+let currentUtterance: SpeechSynthesisUtterance | null = null;
+
+/**
+ * Synthesize speech from text
+ */
+export const synthesizeSpeech = async (
+  text: string,
+  options: TTSOptions
+): Promise<{ duration: number }> => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Cancel any ongoing speech
+      cancelSpeech();
+
+      // Create a new utterance
+      const utterance = new SpeechSynthesisUtterance(text);
+      currentUtterance = utterance;
+
+      // Set voice based on options
+      const voices = window.speechSynthesis.getVoices();
+      const selectedVoice = voices.find(voice => voice.name === options.voice) || voices[0];
+      utterance.voice = selectedVoice;
+
+      // Set other speech properties
+      utterance.volume = options.volume;
+      utterance.rate = options.rate || 1;
+      utterance.pitch = options.pitch || 1;
+
+      // Approximate duration (average reading speed is about 150 words per minute)
+      const words = text.split(/\s+/).length;
+      const durationInSeconds = (words / 150) * 60;
+
+      // Event handlers
+      utterance.onend = () => {
+        currentUtterance = null;
+        resolve({ duration: durationInSeconds });
+      };
+
+      utterance.onerror = (event) => {
+        currentUtterance = null;
+        reject(new Error(`Speech synthesis error: ${event.error}`));
+      };
+
+      // Start speaking
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+/**
+ * Cancel any ongoing speech
+ */
+export const cancelSpeech = () => {
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+    currentUtterance = null;
+  }
+};
+
+/**
+ * Preload voices to ensure they're available
+ */
 export const preloadVoices = async () => {
   try {
     if ('speechSynthesis' in window) {
@@ -78,3 +146,4 @@ export const preloadVoices = async () => {
     return [];
   }
 };
+
