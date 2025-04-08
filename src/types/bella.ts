@@ -1,51 +1,96 @@
 
-// Export with 'export type' for TypeScript isolatedModules compatibility
-export type IntegrationType = 'googleCalendar' | 'googleContacts' | 'gmail' | 'outlookEmail';
+export type Mood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
 
-export interface Integration {
-  type: IntegrationType;
-  isConnected: boolean;
-  lastSynced?: Date;
-}
+export type TTSOptions = {
+  voice: string;
+  volume: number;
+  rate?: number;
+  pitch?: number;
+  enhancedQuality?: boolean;
+};
 
-export interface Message {
+export type Message = {
   id: string;
   content: string;
-  sender: 'user' | 'bella';
+  isUser: boolean;
   timestamp: Date;
-  intentResult?: IntentResult;
+};
+
+export interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  maxTokens: number;
+  costPerToken: number;
 }
 
-export interface UserPreference {
-  key: string;
-  value: string | number | boolean;
-  timestamp: Date;
+export interface AIProvider {
+  name: string;
+  apiKey: string;
+  endpoint?: string;
+  models: AIModel[];
+  selectedModel: string;
 }
 
-export interface IntentResult {
-  text: string;
-  topIntent: string;
-  entities: Array<{
-    entity: string;
-    value: string;
-  }>;
-  primaryEmotion?: string;
-  contextualMemory?: {
-    userPreferences?: Record<string, any>;
-    recentTopics?: string[];
-  };
+export interface N8nSettings {
+  webhookUrl: string;
+  apiKey?: string;
 }
 
-export type BellaMood = 'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused';
+export interface AISettings {
+  openAI: AIProvider;
+  openRouter: AIProvider;
+  anthropic: AIProvider;
+  n8n: N8nSettings;
+}
 
-export type AgentType = 'general' | 'business' | 'coding' | 'medical' | 'finance' | 'social';
+export interface GoogleAPISettings {
+  apiKey: string;
+  searchEngineId: string;
+  isConnected: boolean;
+}
 
 export interface OfflineAgent {
   id: string;
-  type: AgentType;
   name: string;
   description: string;
-  expertise: string[];
   icon: string;
-  isAvailable: boolean;
+  isEnabled: boolean;
+  specialization: string;
+  capabilities: string[];
+}
+
+export type IntegrationType = 'supabase' | 'google' | 'zapier' | 'webhooks';
+
+export interface Integration {
+  type: IntegrationType;
+  name: string;
+  isConnected: boolean;
+  settings: Record<string, any>;
+}
+
+export interface Integrations {
+  [key: string]: Integration;
+}
+
+export interface BellaContextType {
+  messages: Message[];
+  isThinking: boolean;
+  isTalking: boolean;
+  mood: Mood;
+  ttsOptions: TTSOptions;
+  aiSettings: AISettings;
+  googleAPI: GoogleAPISettings;
+  offlineAgents: OfflineAgent[];
+  activeProvider: 'openai' | 'openrouter' | 'anthropic' | 'n8n';
+  integrations: Integrations;
+  sendMessage: (content: string) => Promise<void>;
+  clearMessages: () => void;
+  updateTTSOptions: (options: Partial<TTSOptions>) => void;
+  updateAISettings: (provider: string, settings: Partial<AIProvider | N8nSettings>) => void;
+  updateGoogleAPISettings: (settings: Partial<GoogleAPISettings>) => void;
+  updateOfflineAgent: (agentId: string, settings: Partial<OfflineAgent>) => void;
+  setActiveProvider: (provider: 'openai' | 'openrouter' | 'anthropic' | 'n8n') => void;
+  updateIntegration: (key: string, settings: Partial<Integration>) => void;
 }

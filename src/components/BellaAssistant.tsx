@@ -44,6 +44,7 @@ import AISettings from '@/components/AISettings';
 import IntegrationsPanel from '@/components/IntegrationsPanel';
 import GoogleAPISettings from '@/components/GoogleAPISettings';
 import OfflineAgents from '@/components/OfflineAgents';
+import VoiceList from '@/components/VoiceList';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
@@ -264,31 +265,12 @@ const BellaAssistant: React.FC = () => {
                   <TabsTrigger value="interface">Interface</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="voice" className="mt-4 space-y-8">
+                <TabsContent value="voice" className="mt-4 space-y-6">
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Voice Settings</h3>
                     
                     <div className="space-y-3">
-                      <Label htmlFor="voice-select">Voice</Label>
-                      <Select 
-                        onValueChange={handleVoiceChange} 
-                        defaultValue={ttsOptions.voice}
-                      >
-                        <SelectTrigger id="voice-select" className="border-blue-200 dark:border-blue-800">
-                          <SelectValue placeholder="Select a voice" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableVoices.map((voice) => (
-                            <SelectItem key={voice.id} value={voice.id}>
-                              {voice.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {availableVoices.find(v => v.id === ttsOptions.voice)?.description || 
-                         "A high-quality voice for Bella AI"}
-                      </p>
+                      <VoiceList />
                     </div>
                     
                     <div className="space-y-3">
@@ -508,7 +490,7 @@ const BellaAssistant: React.FC = () => {
         transition={{ duration: 0.5, delay: 0.6 }}
         className="w-full py-4 text-center text-sm text-blue-700/80 dark:text-blue-300/80"
       >
-        <p>Bella AI Assistant <span className="text-blue-500">Premium</span> © 2025 | Built with React + TailwindCSS</p>
+        <p>Bella AI Assistant <span className="text-blue-500">Premium</span> © 2025</p>
       </motion.footer>
     </div>
   );
