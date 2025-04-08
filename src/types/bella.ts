@@ -1,4 +1,5 @@
 
+// Define main type exports
 export type Mood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
 
 export type TTSOptions = {
@@ -14,7 +15,7 @@ export type Message = {
   content: string;
   isUser: boolean;
   timestamp: Date;
-  sender?: 'user' | 'bella';
+  sender: 'user' | 'bella';
   intentResult?: IntentResult;
 };
 
@@ -62,7 +63,7 @@ export interface OfflineAgent {
   isEnabled: boolean;
   specialization: string;
   capabilities: string[];
-  type?: string;
+  type: string;
   isAvailable?: boolean;
   expertise?: string[];
 }

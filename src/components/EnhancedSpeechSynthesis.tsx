@@ -1,10 +1,10 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Volume, VolumeX, Play, Square, SkipForward, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { synthesizeSpeech, cancelSpeech, TTSOptions, availableVoices } from '@/utils/ttsService';
+import { synthesizeSpeech, cancelSpeech, availableVoices } from '@/utils/ttsService';
+import type { TTSOptions } from '@/types/bella';
 import {
   Tooltip,
   TooltipContent,
@@ -58,16 +58,13 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
     if (!text.trim()) return;
     
     try {
-      // Stop any previous speech
       cancelSpeech();
       
-      // Update UI state
       setIsPlaying(true);
       setProgress(0);
       startTimeRef.current = Date.now();
       if (onStart) onStart();
       
-      // Start speech synthesis
       const speechOptions: TTSOptions = {
         voice: options.voice,
         volume: isMuted ? 0 : volume[0] / 100,
@@ -79,7 +76,6 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
       const response = await synthesizeSpeech(text, speechOptions);
       durationRef.current = response.duration;
       
-      // Set up progress tracking
       if (progressInterval.current) {
         clearInterval(progressInterval.current);
       }
@@ -92,7 +88,7 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
         if (newProgress >= 100) {
           handleSpeechEnd();
         }
-      }, 50); // More frequent updates for smoother progress
+      }, 50);
     } catch (error) {
       console.error('Error starting speech synthesis:', error);
       handleSpeechEnd();
@@ -161,7 +157,6 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
   };
   
   useEffect(() => {
-    // Auto-play if enabled and not muted
     if (autoPlay && !isMuted && text) {
       startSpeech();
     }

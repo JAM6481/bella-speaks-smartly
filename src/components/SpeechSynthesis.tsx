@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Volume, VolumeX, Play, Square, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { synthesizeSpeech, cancelSpeech, TTSOptions } from '@/utils/ttsService';
+import { synthesizeSpeech, cancelSpeech } from '@/utils/ttsService';
+import type { TTSOptions } from '@/types/bella';
 
 interface SpeechSynthesisProps {
   text: string;
