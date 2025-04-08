@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, MessageSquare, LayoutDashboard, Bot, Network } from 'lucide-react';
@@ -43,6 +42,7 @@ import ChatInterface from '@/components/ChatInterface';
 import AISettings from '@/components/AISettings';
 import IntegrationsPanel from '@/components/IntegrationsPanel';
 import GoogleAPISettings from '@/components/GoogleAPISettings';
+import OfflineAgents from '@/components/OfflineAgents';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
@@ -67,7 +67,6 @@ const BellaAssistant: React.FC = () => {
   const [volume, setVolume] = useState([ttsOptions.volume ? ttsOptions.volume * 100 : 70]);
   const { toast } = useToast();
   
-  // Preload voices when component mounts
   useEffect(() => {
     preloadVoices().then(() => {
       console.log('Voices preloaded');
@@ -77,13 +76,11 @@ const BellaAssistant: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Check system preference for dark mode
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       document.documentElement.classList.add('dark');
       setIsDarkMode(true);
     }
     
-    // Listen for changes in system preference
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleDarkModeChange = (e: MediaQueryListEvent) => {
       if (e.matches) {
@@ -135,7 +132,7 @@ const BellaAssistant: React.FC = () => {
   };
   
   const handlePitchChange = (value: number[]) => {
-    updateTTSOptions({ pitch: value[0] / 100 * 2 }); // Scale to 0-2 range
+    updateTTSOptions({ pitch: value[0] / 100 * 2 });
     toast({
       title: "Pitch adjusted",
       description: `Pitch set to ${value[0]}%`,
@@ -143,7 +140,7 @@ const BellaAssistant: React.FC = () => {
   };
   
   const handleRateChange = (value: number[]) => {
-    updateTTSOptions({ rate: value[0] / 100 * 2 }); // Scale to 0-2 range
+    updateTTSOptions({ rate: value[0] / 100 * 2 });
     toast({
       title: "Speaking rate adjusted",
       description: `Speaking rate set to ${value[0]}%`,
@@ -187,7 +184,6 @@ const BellaAssistant: React.FC = () => {
     return null;
   };
   
-  // Count connected integrations for badge
   const connectedIntegrationsCount = Object.values(integrations).filter(i => i.isConnected).length;
 
   return (
@@ -255,12 +251,13 @@ const BellaAssistant: React.FC = () => {
               </SheetHeader>
               
               <Tabs defaultValue="voice" className="mt-6">
-                <TabsList className="grid w-full grid-cols-5">
+                <TabsList className="grid w-full grid-cols-6">
                   <TabsTrigger value="voice">Voice</TabsTrigger>
                   <TabsTrigger value="ai">AI Model</TabsTrigger>
+                  <TabsTrigger value="agents">Agents</TabsTrigger>
                   <TabsTrigger value="google">Google</TabsTrigger>
                   <TabsTrigger value="integrations">
-                    Integrations
+                    Connect
                     {connectedIntegrationsCount > 0 && (
                       <span className="ml-1 bg-green-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
                         {connectedIntegrationsCount}
@@ -376,6 +373,10 @@ const BellaAssistant: React.FC = () => {
                 
                 <TabsContent value="ai" className="mt-4">
                   <AISettings />
+                </TabsContent>
+                
+                <TabsContent value="agents" className="mt-4">
+                  <OfflineAgents />
                 </TabsContent>
                 
                 <TabsContent value="google" className="mt-4">

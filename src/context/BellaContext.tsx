@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +12,9 @@ import {
 import { mockConnectIntegration, saveGoogleAPISettings, getGoogleAPISettings, GoogleAPISettings } from '@/utils/integrationUtils';
 import { getIntentBasedResponse } from '@/utils/responseGenerator';
 import { determineMood } from '@/utils/moodUtils';
-import { Message, UserPreference, IntegrationType, Integration, BellaMood } from '@/types/bella';
+import { Message, UserPreference, IntegrationType, Integration, BellaMood, AgentType, OfflineAgent } from '@/types/bella';
+
+export { IntegrationType };
 
 export interface BellaContextType {
   messages: Message[];
@@ -26,6 +27,8 @@ export interface BellaContextType {
   activeProvider: AIProvider;
   integrations: Record<IntegrationType, Integration>;
   userPreferences: UserPreference[];
+  offlineAgents: OfflineAgent[];
+  activeAgent: AgentType;
   sendMessage: (content: string) => void;
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
@@ -35,6 +38,7 @@ export interface BellaContextType {
   connectIntegration: (type: IntegrationType) => Promise<boolean>;
   disconnectIntegration: (type: IntegrationType) => void;
   addUserPreference: (key: string, value: string | number | boolean) => void;
+  setActiveAgent: (agentType: AgentType) => void;
 }
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
@@ -88,6 +92,57 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const [userPreferences, setUserPreferences] = useState<UserPreference[]>([]);
   const { toast } = useToast();
+  
+  // Offline Agents
+  const [offlineAgents, setOfflineAgents] = useState<OfflineAgent[]>([
+    {
+      id: 'business-consultant',
+      type: 'business',
+      name: 'Business Consultant',
+      description: 'Strategic advice for business growth, operations, and management',
+      expertise: ['Strategic planning', 'Market analysis', 'Team management', 'Process optimization'],
+      icon: 'briefcase',
+      isAvailable: true
+    },
+    {
+      id: 'fullstack-developer',
+      type: 'coding',
+      name: 'Full Stack Developer',
+      description: 'Expert coding assistance for web, mobile, and backend development',
+      expertise: ['React', 'Node.js', 'Python', 'Database design', 'API development', 'DevOps'],
+      icon: 'code',
+      isAvailable: true
+    },
+    {
+      id: 'medical-advisor',
+      type: 'medical',
+      name: 'Medical Advisor',
+      description: 'General health information and wellness guidance',
+      expertise: ['Health education', 'Wellness tips', 'Medical information', 'Healthy lifestyle'],
+      icon: 'stethoscope',
+      isAvailable: true
+    },
+    {
+      id: 'finance-advisor',
+      type: 'finance',
+      name: 'Financial Advisor',
+      description: 'Personal finance management and investment guidance',
+      expertise: ['Budgeting', 'Investing', 'Retirement planning', 'Debt management'],
+      icon: 'dollar-sign',
+      isAvailable: true
+    },
+    {
+      id: 'social-media-manager',
+      type: 'social',
+      name: 'Social Media Manager',
+      description: 'Strategy and content creation for social media platforms',
+      expertise: ['Content strategy', 'Audience growth', 'Engagement tactics', 'Platform optimization'],
+      icon: 'share',
+      isAvailable: true
+    }
+  ]);
+  
+  const [activeAgent, setActiveAgent] = useState<AgentType>('general');
   
   // Preload voices when context is first created
   useEffect(() => {
@@ -231,8 +286,15 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // Get a response that includes info about the selected model
-        responseContent = getIntentBasedResponse(intentResult, activeProvider, selectedModel);
+        // Get a response that includes info about the selected model and agent
+        responseContent = getIntentBasedResponse(
+          intentResult, 
+          activeProvider, 
+          selectedModel, 
+          activeAgent !== 'general' 
+            ? offlineAgents.find(agent => agent.type === activeAgent) 
+            : null
+        );
       } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
         // In a real app, this would call the n8n webhook
         const selectedWorkflow = aiSettings.n8n.selectedWorkflow;
@@ -242,8 +304,15 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
-        // Get a response that includes info about using n8n
-        responseContent = getIntentBasedResponse(intentResult, activeProvider, aiSettings.n8n.selectedWorkflow);
+        // Get a response that includes info about using n8n and agent
+        responseContent = getIntentBasedResponse(
+          intentResult, 
+          activeProvider, 
+          aiSettings.n8n.selectedWorkflow,
+          activeAgent !== 'general' 
+            ? offlineAgents.find(agent => agent.type === activeAgent) 
+            : null
+        );
       } else {
         // Fallback to default responses
         console.log('Using built-in response generator');
@@ -309,7 +378,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }, 2000);
       }, speakingTime);
     }
-  }, [activeProvider, aiSettings, toast, integrations, addUserPreference]);
+  }, [activeProvider, aiSettings, toast, integrations, addUserPreference, activeAgent, offlineAgents]);
   
   const clearMessages = useCallback(() => {
     setMessages([
@@ -377,6 +446,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       activeProvider,
       integrations,
       userPreferences,
+      offlineAgents,
+      activeAgent,
       sendMessage,
       clearMessages,
       updateTTSOptions,
@@ -385,7 +456,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActiveProvider: setActiveProviderWithStorage,
       connectIntegration,
       disconnectIntegration,
-      addUserPreference
+      addUserPreference,
+      setActiveAgent
     }}>
       {children}
     </BellaContext.Provider>

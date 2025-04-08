@@ -12,6 +12,12 @@ export const availableVoices = [
     description: 'A confident, articulate voice with a professional yet approachable demeanor, and a subtle, captivating charm. Perfect for a premium AI assistant.'
   },
   { 
+    id: 'bella_executive', 
+    name: 'Bella Executive', 
+    language: 'en-US', 
+    description: 'A poised, authoritative American female voice with perfect articulation and a commanding yet approachable presence. Ideal for business presentations and executive communications.'
+  },
+  { 
     id: 'bella_premium', 
     name: 'Bella Premium', 
     language: 'en-US', 
@@ -71,17 +77,17 @@ export interface TTSResponse {
   }>;
 }
 
-// Default options for TTS - updated for premium voice profile
+// Default options for TTS - updated for professional voice profile
 const defaultOptions: TTSOptions = {
-  voice: 'bella_premium',
-  pitch: 1.1, // Slightly higher pitch for clarity
+  voice: 'bella_professional',
+  pitch: 1.05, // Slightly higher pitch for a younger sound
   rate: 1.0,  // Standard rate for natural speaking
   volume: 1.0,
   enhancedQuality: true, // Enable enhanced quality by default
-  accent: 'neutral',
-  age: 'adult',
-  style: 'neutral',
-  personality: 'neutral'
+  accent: 'american',
+  age: 'mid-twenties',
+  style: 'confident-professional',
+  personality: 'approachable-charming'
 };
 
 /**

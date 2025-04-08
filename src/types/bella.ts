@@ -36,3 +36,15 @@ export interface IntentResult {
 }
 
 export type BellaMood = 'happy' | 'curious' | 'thinking' | 'neutral' | 'surprised' | 'concerned' | 'excited' | 'confused';
+
+export type AgentType = 'general' | 'business' | 'coding' | 'medical' | 'finance' | 'social';
+
+export interface OfflineAgent {
+  id: string;
+  type: AgentType;
+  name: string;
+  description: string;
+  expertise: string[];
+  icon: string;
+  isAvailable: boolean;
+}

@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { useBella, IntegrationType } from '@/context/BellaContext';
+import { useBella } from '@/context/BellaContext';
+import { IntegrationType } from '@/types/bella';
 import { useToast } from '@/hooks/use-toast';
 
 const IntegrationsPanel: React.FC = () => {
