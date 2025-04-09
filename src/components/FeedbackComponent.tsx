@@ -30,7 +30,8 @@ const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ messageId }) => {
       rating: type === 'helpful' ? 1 : -1,
       comment,
       timestamp: new Date(),
-      category: type
+      // Convert 'unhelpful' to 'accuracy' to match the expected type
+      category: type === 'helpful' ? 'helpful' : 'accuracy'
     });
     setIsPopoverOpen(false);
   };

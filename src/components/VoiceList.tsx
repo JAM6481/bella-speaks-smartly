@@ -99,7 +99,7 @@ const VoiceList = () => {
                   <span className="font-medium">{voice.name}</span>
                   
                   {isPremium && (
-                    <Badge variant="premium" className="ml-2 bg-gradient-to-r from-amber-500 to-amber-300 text-white dark:from-amber-500 dark:to-amber-400">
+                    <Badge variant="secondary" className="ml-2 bg-gradient-to-r from-amber-500 to-amber-300 text-white dark:from-amber-500 dark:to-amber-400">
                       <Crown className="h-3 w-3 mr-1" /> Premium
                     </Badge>
                   )}
