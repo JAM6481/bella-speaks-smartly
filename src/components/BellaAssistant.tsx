@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, Bot, Network } from 'lucide-react';
+import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, Bot, Network, Trophy } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -49,6 +48,7 @@ import APIKeyStorage from '@/components/APIKeyStorage';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
+import { openAIModels, anthropicModels } from '@/utils/aiProviders';
 
 const BellaAssistant: React.FC = () => {
   const { 
@@ -165,7 +165,21 @@ const BellaAssistant: React.FC = () => {
   };
 
   const getProviderBadge = () => {
-    if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
+    if (activeProvider === 'openai' && aiSettings.openai.apiKey) {
+      return (
+        <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+          <Bot className="w-3 h-3 mr-1" /> 
+          {openAIModels.find(m => m.id === aiSettings.openai.selectedModel)?.name || 'GPT'}
+        </Badge>
+      );
+    } else if (activeProvider === 'anthropic' && aiSettings.anthropic.apiKey) {
+      return (
+        <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
+          <Bot className="w-3 h-3 mr-1" /> 
+          {anthropicModels.find(m => m.id === aiSettings.anthropic.selectedModel)?.name || 'Claude'}
+        </Badge>
+      );
+    } else if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
       return (
         <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <Bot className="w-3 h-3 mr-1" /> 

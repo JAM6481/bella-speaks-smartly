@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { openRouterModels, n8nModels } from '@/utils/aiProviders';
+import AIModelSelector from '@/components/AIModelSelector';
 
 const AISettings = () => {
   const { aiSettings, updateAISettings, activeProvider, setActiveProvider } = useBella();
@@ -15,6 +16,8 @@ const AISettings = () => {
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300">AI Provider Settings</h3>
+      
+      <AIModelSelector />
       
       <Tabs defaultValue={activeProvider} onValueChange={(v: any) => setActiveProvider(v)}>
         <TabsList className="grid w-full grid-cols-2">
@@ -35,29 +38,6 @@ const AISettings = () => {
             />
             <p className="text-xs text-muted-foreground">
               Your API key is stored locally and never shared
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="openrouter-model">Model</Label>
-            <Select 
-              value={aiSettings.openRouter.selectedModel}
-              onValueChange={(value) => updateAISettings('openrouter', { selectedModel: value })}
-            >
-              <SelectTrigger id="openrouter-model">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {openRouterModels.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">
-              {openRouterModels.find(m => m.id === aiSettings.openRouter.selectedModel)?.description || 
-               "Select a model to see its description"}
             </p>
           </div>
           

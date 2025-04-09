@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, SendHorizontal, Wand, Star, Trophy } from 'lucide-react';
+import { Mic, MicOff, SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -206,29 +205,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-blue-200 dark:scrollbar-thumb-blue-800 scrollbar-track-transparent"
       >
-        {messages.length <= 1 && (
-          <div className="flex flex-col space-y-3 mb-4">
-            <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Suggested actions:</p>
-            <div className="grid grid-cols-2 gap-2">
-              {suggestions.map((suggestion, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="justify-start text-left text-xs font-normal border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                >
-                  {index % 2 === 0 ? 
-                    <Wand className="h-3 w-3 mr-2 text-blue-500" /> : 
-                    <Star className="h-3 w-3 mr-2 text-blue-500" />
-                  }
-                  {suggestion}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-      
         <AnimatePresence>
           {messages.map((message) => (
             <motion.div
