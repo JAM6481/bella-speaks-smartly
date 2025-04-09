@@ -17,6 +17,26 @@ export const availableVoices = [
     description: 'A clear, friendly U.S. female voice with excellent articulation'
   },
   {
+    id: 'en-US-Wavenet-F',
+    name: 'Emma',
+    description: 'A bright, cheerful younger female voice with natural inflections and warmth'
+  },
+  {
+    id: 'en-US-Wavenet-C',
+    name: 'Sofia',
+    description: 'A smooth, youthful female voice with a natural conversational quality'
+  },
+  {
+    id: 'en-US-Studio-O',
+    name: 'Olivia',
+    description: 'A premium studio-quality young female voice with exceptional clarity and warmth'
+  },
+  {
+    id: 'en-US-Polyglot-1',
+    name: 'Zoe',
+    description: 'A versatile, natural-sounding young female voice with excellent pronunciation'
+  },
+  {
     id: 'en-US-Neural2-D',
     name: 'Daniel',
     description: 'A deep, resonant male voice with a formal tone'
@@ -27,16 +47,6 @@ export const availableVoices = [
     description: 'A warm, natural-sounding male voice'
   },
   {
-    id: 'en-US-Neural2-E',
-    name: 'Emma',
-    description: 'A bright, cheerful female voice with a younger tone'
-  },
-  {
-    id: 'en-US-Neural2-B',
-    name: 'Brian',
-    description: 'A smooth, professional male voice with clear diction'
-  },
-  {
     id: 'en-GB-Neural2-B',
     name: 'Oliver',
     description: 'A British male voice with a formal, intelligent tone'
@@ -45,16 +55,6 @@ export const availableVoices = [
     id: 'en-GB-Neural2-A',
     name: 'Sophie',
     description: 'A British female voice with a warm, friendly quality'
-  },
-  {
-    id: 'en-AU-Neural2-A',
-    name: 'Charlotte',
-    description: 'An Australian female voice with a pleasant, upbeat tone'
-  },
-  {
-    id: 'en-AU-Neural2-B',
-    name: 'James',
-    description: 'An Australian male voice with a confident, relaxed quality'
   }
 ];
 
@@ -64,6 +64,8 @@ let currentUtterance: SpeechSynthesisUtterance | null = null;
 // Track if voices are ready to be used
 let voicesReady = false;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+let failedVoiceAttempts = 0;
+let lastUsedVoice: string | null = null;
 
 /**
  * Synthesize speech from text
@@ -100,25 +102,50 @@ export const synthesizeSpeech = async (
         );
       }
       
-      // If not found by name, try direct match or fallback to any voice
+      // If not found by name, try direct match or fallback
       if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.name === requestedVoiceId) || 
-                        voices.find(v => v.lang === 'en-US') || 
-                        voices[0];
+        // Try to use the last successful voice if available
+        if (lastUsedVoice) {
+          selectedVoice = voices.find(v => v.name === lastUsedVoice);
+        }
         
-        console.log(`Voice "${requestedVoiceId}" not found, using fallback: ${selectedVoice?.name}`);
+        // If still not found, use any feminine voice as fallback
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => v.name.includes('female') || v.name.includes('Female')) || 
+                          voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('female'))) || 
+                          voices.find(v => v.lang === 'en-US') || 
+                          voices[0];
+          
+          failedVoiceAttempts++;
+          console.warn(`Voice "${requestedVoiceId}" not found after ${failedVoiceAttempts} attempts, using fallback: ${selectedVoice?.name}`);
+        }
       }
       
       utterance.voice = selectedVoice;
+      
+      // If we successfully set a voice, remember it for future fallbacks
+      if (selectedVoice) {
+        lastUsedVoice = selectedVoice.name;
+      }
 
-      // Set other speech properties
+      // Apply enhanced quality settings
+      if (options.enhancedQuality) {
+        // Adjust parameters for higher quality speech
+        utterance.rate = (options.rate || 1) * 0.95; // Slightly slower for better articulation
+        utterance.pitch = (options.pitch || 1) * 1.05; // Slightly higher for a younger female voice
+      } else {
+        // Use standard settings
+        utterance.rate = options.rate || 1;
+        utterance.pitch = options.pitch || 1;
+      }
+      
+      // Set volume
       utterance.volume = options.volume;
-      utterance.rate = options.rate || 1;
-      utterance.pitch = options.pitch || 1;
 
       // Approximate duration (average reading speed is about 150 words per minute)
       const words = text.split(/\s+/).length;
-      const durationInSeconds = (words / 150) * 60;
+      const effectiveRate = utterance.rate || 1;
+      const durationInSeconds = (words / (150 * effectiveRate)) * 60;
 
       // Fallback timer in case onend doesn't fire (which happens sometimes)
       if (fallbackTimer) {
@@ -182,7 +209,8 @@ export const cancelSpeech = () => {
  */
 export const getVoiceById = (voiceId: string): string => {
   const voiceInfo = availableVoices.find(v => v.id === voiceId);
-  return voiceInfo ? voiceInfo.id : availableVoices[0].id;
+  // Return the premium quality young female voice as default
+  return voiceInfo ? voiceInfo.id : 'en-US-Studio-O';
 };
 
 /**
@@ -221,4 +249,51 @@ export const preloadVoices = async () => {
     console.error('Error loading voices:', error);
     return [];
   }
+};
+
+/**
+ * Check if premium voices are available
+ */
+export const arePremiumVoicesAvailable = (): boolean => {
+  if (!window.speechSynthesis) return false;
+  
+  const voices = window.speechSynthesis.getVoices();
+  return voices.some(v => 
+    v.name.includes('Studio') || 
+    v.name.includes('Neural') || 
+    v.name.includes('Wavenet') || 
+    v.name.includes('Premium')
+  );
+};
+
+/**
+ * Get best available voice for a young female
+ */
+export const getBestYoungFemaleVoice = (): string => {
+  const premiumVoices = [
+    'en-US-Studio-O',    // First choice - premium studio
+    'en-US-Wavenet-F',   // Second choice - wavenet
+    'en-US-Neural2-C',   // Third choice - neural
+    'en-US-Neural2-F'    // Fourth choice - neural
+  ];
+  
+  // Try each voice in order of preference
+  const voices = window.speechSynthesis.getVoices();
+  
+  for (const voiceId of premiumVoices) {
+    const voiceInfo = availableVoices.find(v => v.id === voiceId);
+    if (voiceInfo) {
+      const foundVoice = voices.find(v => 
+        v.name === voiceInfo.name || 
+        v.name.includes(voiceInfo.name)
+      );
+      
+      if (foundVoice) {
+        return voiceId;
+      }
+    }
+  }
+  
+  // If no premium voices found, return default
+  return 'en-US-Neural2-F';
 };

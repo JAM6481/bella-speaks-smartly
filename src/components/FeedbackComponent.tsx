@@ -1,18 +1,15 @@
 
 import React, { useState } from 'react';
-import { ThumbsUp, ThumbsDown, Flag, Send, X } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
+import { useBella } from '@/context/BellaContext';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  PopoverClose,
-} from '@/components/ui/popover';
-import { FeedbackData } from '@/types/bella';
-import { useBella } from '@/context/BellaContext';
+} from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface FeedbackComponentProps {
   messageId: string;
@@ -20,206 +17,124 @@ interface FeedbackComponentProps {
 
 const FeedbackComponent: React.FC<FeedbackComponentProps> = ({ messageId }) => {
   const { submitFeedback, reportMessage } = useBella();
-  const [rating, setRating] = useState<number | null>(null);
+  const [feedbackType, setFeedbackType] = useState<'helpful' | 'unhelpful' | null>(null);
   const [comment, setComment] = useState('');
-  const [category, setCategory] = useState<'helpful' | 'accuracy' | 'safety' | 'other'>('helpful');
-  const [showThankYou, setShowThankYou] = useState(false);
-  const [showReportForm, setShowReportForm] = useState(false);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
-
-  const handleFeedbackSubmit = () => {
-    if (rating !== null) {
-      const feedback: FeedbackData = {
-        messageId,
-        rating,
-        comment,
-        category,
-        timestamp: new Date()
-      };
-      
-      submitFeedback(feedback);
-      setShowThankYou(true);
-      
-      // Reset after a delay
-      setTimeout(() => {
-        setShowThankYou(false);
-        setRating(null);
-        setComment('');
-      }, 3000);
-    }
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  
+  const handleFeedback = (type: 'helpful' | 'unhelpful') => {
+    setFeedbackType(type);
+    submitFeedback({
+      messageId,
+      rating: type === 'helpful' ? 1 : -1,
+      comment,
+      timestamp: new Date(),
+      category: type
+    });
+    setIsPopoverOpen(false);
   };
-
+  
   const handleReport = () => {
-    if (reportReason.trim()) {
-      reportMessage(messageId, reportReason);
-      setShowReportForm(false);
-      setReportReason('');
-      // Show a brief thank you message
-      setShowThankYou(true);
-      setTimeout(() => setShowThankYou(false), 3000);
-    }
+    reportMessage(messageId, reportReason);
+    setIsReportDialogOpen(false);
+    setReportReason('');
   };
-
+  
   return (
-    <div className="flex items-center space-x-1 mt-1">
-      {showThankYou ? (
-        <div className="text-sm text-green-600 dark:text-green-400 animate-fade-in">
-          Thank you for your feedback!
-        </div>
-      ) : (
-        <>
-          <div className="flex items-center space-x-1">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`rounded-full p-0 w-6 h-6 ${rating === 1 ? 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400' : ''}`}
-              onClick={() => setRating(1)}
-            >
-              <ThumbsUp className="h-3 w-3" />
-            </Button>
+    <div className="flex items-center mt-2 space-x-2">
+      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 ${feedbackType === 'helpful' ? 'text-green-500' : ''}`}
+          >
+            <ThumbsUp className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-60">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Was this response helpful?</p>
+            <div className="flex justify-between">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => handleFeedback('helpful')}
+                className={feedbackType === 'helpful' ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400' : ''}
+              >
+                Yes, helpful
+              </Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => handleFeedback('unhelpful')}
+                className={feedbackType === 'unhelpful' ? 'bg-red-50 border-red-200 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-400' : ''}
+              >
+                Not helpful
+              </Button>
+            </div>
             
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className={`rounded-full p-0 w-6 h-6 ${rating === 0 ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400' : ''}`}
-              onClick={() => setRating(0)}
-            >
-              <ThumbsDown className="h-3 w-3" />
-            </Button>
-            
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="rounded-full p-0 w-6 h-6"
-                >
-                  <Flag className="h-3 w-3" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                {!showReportForm ? (
-                  <div className="space-y-4">
-                    <h4 className="font-medium">Report this message</h4>
-                    <p className="text-sm text-muted-foreground">
-                      If this response contains harmful content or personal information, please let us know.
-                    </p>
-                    <Button 
-                      onClick={() => setShowReportForm(true)}
-                      className="w-full"
-                    >
-                      Report content
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Report content</h4>
-                      <PopoverClose asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </PopoverClose>
-                    </div>
-                    
-                    <Textarea
-                      placeholder="Please describe why you're reporting this response..."
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      className="min-h-[100px]"
-                    />
-                    
-                    <div className="flex justify-end space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setShowReportForm(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        size="sm"
-                        onClick={handleReport}
-                        disabled={!reportReason.trim()}
-                      >
-                        <Send className="h-4 w-4 mr-2" />
-                        Submit
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </PopoverContent>
-            </Popover>
+            <Textarea 
+              placeholder="Additional comments (optional)" 
+              value={comment} 
+              onChange={(e) => setComment(e.target.value)}
+              className="mt-2 text-sm"
+              rows={2}
+            />
           </div>
+        </PopoverContent>
+      </Popover>
+      
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className={`h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 ${feedbackType === 'unhelpful' ? 'text-red-500' : ''}`}
+        onClick={() => handleFeedback('unhelpful')}
+      >
+        <ThumbsDown className="h-4 w-4" />
+      </Button>
+      
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-7 w-7 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+        onClick={() => setIsReportDialogOpen(true)}
+      >
+        <Flag className="h-4 w-4" />
+      </Button>
+      
+      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report Message</DialogTitle>
+            <DialogDescription>
+              Please explain why you're reporting this message. This helps us improve Bella.
+            </DialogDescription>
+          </DialogHeader>
           
-          {rating !== null && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-6"
-                >
-                  Add details
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="space-y-4">
-                  <h4 className="font-medium">Your feedback</h4>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Feedback category:</p>
-                    <RadioGroup
-                      value={category}
-                      onValueChange={(val) => setCategory(val as any)}
-                      className="flex flex-col space-y-1"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="helpful" id="helpful" />
-                        <Label htmlFor="helpful">Helpfulness</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="accuracy" id="accuracy" />
-                        <Label htmlFor="accuracy">Accuracy</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="safety" id="safety" />
-                        <Label htmlFor="safety">Safety</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="other" id="other" />
-                        <Label htmlFor="other">Other</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="comment">Additional comments (optional):</Label>
-                    <Textarea
-                      id="comment"
-                      placeholder="What did you like or dislike about this response?"
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="min-h-[100px]"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2">
-                    <PopoverClose asChild>
-                      <Button variant="outline" size="sm">Cancel</Button>
-                    </PopoverClose>
-                    <PopoverClose asChild>
-                      <Button size="sm" onClick={handleFeedbackSubmit}>
-                        Submit feedback
-                      </Button>
-                    </PopoverClose>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </>
-      )}
+          <Textarea 
+            placeholder="Reason for reporting this message" 
+            value={reportReason} 
+            onChange={(e) => setReportReason(e.target.value)}
+            className="mt-2"
+            rows={4}
+          />
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleReport}
+              disabled={!reportReason.trim()}
+            >
+              Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

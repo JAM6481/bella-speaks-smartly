@@ -65,7 +65,7 @@ export interface OfflineAgent {
   isEnabled: boolean;
   specialization: string;
   capabilities: string[];
-  type: string;
+  type: AgentType;
   isAvailable?: boolean;
   expertise?: string[];
 }
