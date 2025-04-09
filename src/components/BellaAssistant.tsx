@@ -45,6 +45,7 @@ import IntegrationsPanel from '@/components/IntegrationsPanel';
 import GoogleAPISettings from '@/components/GoogleAPISettings';
 import OfflineAgents from '@/components/OfflineAgents';
 import VoiceList from '@/components/VoiceList';
+import APIKeyStorage from '@/components/APIKeyStorage';
 import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
@@ -249,11 +250,10 @@ const BellaAssistant: React.FC = () => {
               </SheetHeader>
               
               <Tabs defaultValue="voice" className="mt-6">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="voice">Voice</TabsTrigger>
                   <TabsTrigger value="ai">AI Model</TabsTrigger>
-                  <TabsTrigger value="agents">Agents</TabsTrigger>
-                  <TabsTrigger value="google">Google</TabsTrigger>
+                  <TabsTrigger value="apiKeys">API Keys</TabsTrigger>
                   <TabsTrigger value="integrations">
                     Connect
                     {connectedIntegrationsCount > 0 && (
@@ -265,7 +265,7 @@ const BellaAssistant: React.FC = () => {
                   <TabsTrigger value="interface">Interface</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="voice" className="mt-4 space-y-6">
+                <TabsContent value="voice" className="mt-4 space-y-6 overflow-hidden">
                   <div className="space-y-4">
                     <h3 className="text-sm font-medium text-blue-700 dark:text-blue-300">Voice Settings</h3>
                     
@@ -353,13 +353,9 @@ const BellaAssistant: React.FC = () => {
                 <TabsContent value="ai" className="mt-4">
                   <AISettings />
                 </TabsContent>
-                
-                <TabsContent value="agents" className="mt-4">
-                  <OfflineAgents />
-                </TabsContent>
-                
-                <TabsContent value="google" className="mt-4">
-                  <GoogleAPISettings />
+
+                <TabsContent value="apiKeys" className="mt-4">
+                  <APIKeyStorage />
                 </TabsContent>
                 
                 <TabsContent value="integrations" className="mt-4">

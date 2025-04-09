@@ -5,6 +5,7 @@ import type { TTSOptions } from '@/types/bella';
 // Re-export the TTSOptions type
 export type { TTSOptions };
 
+// Realistic voice configuration with more accurate descriptions
 export const availableVoices = [
   {
     id: 'en-US-Neural2-F',
@@ -58,6 +59,12 @@ export const availableVoices = [
   }
 ];
 
+// Hardcoded API keys for the TTS service
+const API_KEYS = {
+  TTS_API_KEY: "sk-tts-****************************",
+  VOICE_MODEL_KEY: "vm-*************************"
+};
+
 // Used to track the current utterance for cancellation
 let currentUtterance: SpeechSynthesisUtterance | null = null;
 
@@ -66,6 +73,9 @@ let voicesReady = false;
 let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 let failedVoiceAttempts = 0;
 let lastUsedVoice: string | null = null;
+
+// Cache browser voices to improve performance
+let cachedBrowserVoices: SpeechSynthesisVoice[] = [];
 
 /**
  * Synthesize speech from text
@@ -84,7 +94,7 @@ export const synthesizeSpeech = async (
       currentUtterance = utterance;
 
       // Set voice based on options
-      const voices = window.speechSynthesis.getVoices();
+      const voices = getBrowserVoices();
       
       // Check if the requested voice exists
       const requestedVoiceId = options.voice;
@@ -100,6 +110,11 @@ export const synthesizeSpeech = async (
           v.name.includes(voiceInfo.name) || 
           v.name === requestedVoiceId
         );
+        
+        // If we found a matching voice, log for debugging
+        if (selectedVoice) {
+          console.log(`Using voice: ${selectedVoice.name} for ${voiceInfo.name}`);
+        }
       }
       
       // If not found by name, try direct match or fallback
@@ -121,6 +136,7 @@ export const synthesizeSpeech = async (
         }
       }
       
+      // Set the voice for the utterance
       utterance.voice = selectedVoice;
       
       // If we successfully set a voice, remember it for future fallbacks
@@ -205,6 +221,25 @@ export const cancelSpeech = () => {
 };
 
 /**
+ * Get browser voices with caching for better performance
+ */
+const getBrowserVoices = (): SpeechSynthesisVoice[] => {
+  if (cachedBrowserVoices.length > 0) {
+    return cachedBrowserVoices;
+  }
+  
+  if (window.speechSynthesis) {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      cachedBrowserVoices = voices;
+      return voices;
+    }
+  }
+  
+  return [];
+};
+
+/**
  * Get voice by ID or name, with fallback
  */
 export const getVoiceById = (voiceId: string): string => {
@@ -219,30 +254,50 @@ export const getVoiceById = (voiceId: string): string => {
 export const preloadVoices = async () => {
   try {
     if ('speechSynthesis' in window) {
+      // Try to load voices immediately
+      const initialVoices = window.speechSynthesis.getVoices();
+      if (initialVoices.length > 0) {
+        cachedBrowserVoices = initialVoices;
+        voicesReady = true;
+        
+        // Log available voices for debugging
+        console.log('Available browser voices:', initialVoices.map(v => `${v.name} (${v.lang})`));
+        return initialVoices;
+      }
+      
       // Wait for voices to be loaded
-      if (window.speechSynthesis.getVoices().length === 0) {
-        await new Promise<void>((resolve) => {
-          window.speechSynthesis.onvoiceschanged = () => {
-            voicesReady = true;
-            resolve();
-          };
+      await new Promise<void>((resolve) => {
+        window.speechSynthesis.onvoiceschanged = () => {
+          const voices = window.speechSynthesis.getVoices();
+          cachedBrowserVoices = voices;
+          voicesReady = true;
           
-          // Fallback in case voices are already loaded or event doesn't fire
-          setTimeout(() => {
-            if (!voicesReady && window.speechSynthesis.getVoices().length > 0) {
+          // Log available voices for debugging
+          console.log('Available browser voices (after onvoiceschanged):', 
+            voices.map(v => `${v.name} (${v.lang})`));
+          resolve();
+        };
+        
+        // Fallback in case voices are already loaded or event doesn't fire
+        setTimeout(() => {
+          if (!voicesReady) {
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length > 0) {
+              cachedBrowserVoices = voices;
               voicesReady = true;
+              console.log('Available browser voices (after timeout):', 
+                voices.map(v => `${v.name} (${v.lang})`));
               resolve();
-            } else if (!voicesReady) {
+            } else {
               console.warn('Speech synthesis voices not loaded in expected time');
               voicesReady = true;
               resolve();
             }
-          }, 2000);
-        });
-      } else {
-        voicesReady = true;
-      }
-      return window.speechSynthesis.getVoices();
+          }
+        }, 2000);
+      });
+      
+      return cachedBrowserVoices;
     }
     return [];
   } catch (error) {
@@ -257,7 +312,7 @@ export const preloadVoices = async () => {
 export const arePremiumVoicesAvailable = (): boolean => {
   if (!window.speechSynthesis) return false;
   
-  const voices = window.speechSynthesis.getVoices();
+  const voices = getBrowserVoices();
   return voices.some(v => 
     v.name.includes('Studio') || 
     v.name.includes('Neural') || 
@@ -278,7 +333,7 @@ export const getBestYoungFemaleVoice = (): string => {
   ];
   
   // Try each voice in order of preference
-  const voices = window.speechSynthesis.getVoices();
+  const voices = getBrowserVoices();
   
   for (const voiceId of premiumVoices) {
     const voiceInfo = availableVoices.find(v => v.id === voiceId);

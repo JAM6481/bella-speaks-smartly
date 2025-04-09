@@ -29,6 +29,31 @@ const VoiceList = () => {
   const handleVoiceSelect = (voiceId: string) => {
     setSelectedVoice(voiceId);
     updateTTSOptions({ voice: voiceId });
+    
+    // Force browser to reload voices to apply change immediately
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("Voice selected");
+      
+      // Find the corresponding voice info
+      const voiceInfo = availableVoices.find(v => v.id === voiceId);
+      if (voiceInfo) {
+        // Try to find a matching voice in the browser
+        const voices = window.speechSynthesis.getVoices();
+        const matchedVoice = voices.find(v => 
+          v.name === voiceInfo.name || 
+          v.name.includes(voiceInfo.name)
+        );
+        if (matchedVoice) {
+          utterance.voice = matchedVoice;
+          console.log(`Selected browser voice: ${matchedVoice.name}`);
+        }
+      }
+      
+      // Set a very low volume, we don't actually want to hear this test
+      utterance.volume = 0.01;
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   // Filter voices based on search query

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Volume, VolumeX, Play, Square, SkipForward, Settings } from 'lucide-react';
@@ -73,6 +74,12 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
         enhancedQuality
       };
       
+      // Force browser to reload voices to apply change immediately
+      if (window.speechSynthesis) {
+        console.log("Getting voices before speech");
+        window.speechSynthesis.getVoices();
+      }
+      
       const response = await synthesizeSpeech(text, speechOptions);
       durationRef.current = response.duration;
       
@@ -133,11 +140,38 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
   };
   
   const handleVoiceChange = (value: string) => {
+    console.log("Voice changed to:", value);
     if (onOptionsChange) {
       onOptionsChange({
         ...options,
         voice: value
       });
+    }
+    
+    // Force browser to reload voices to prepare for next synthesis
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance("");
+      
+      // Find the corresponding voice info
+      const voiceInfo = availableVoices.find(v => v.id === value);
+      if (voiceInfo) {
+        // Try to find a matching voice in the browser
+        const voices = window.speechSynthesis.getVoices();
+        const matchedVoice = voices.find(v => 
+          v.name === voiceInfo.name || 
+          v.name.includes(voiceInfo.name)
+        );
+        if (matchedVoice) {
+          utterance.voice = matchedVoice;
+          console.log(`Selected browser voice: ${matchedVoice.name}`);
+        }
+      }
+      
+      // We don't actually want to hear anything, just load the voice
+      utterance.volume = 0;
+      utterance.text = "";
+      window.speechSynthesis.speak(utterance);
     }
   };
   
@@ -325,7 +359,7 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   {availableVoices.find(v => v.id === options.voice)?.description}
                 </p>
               </div>
