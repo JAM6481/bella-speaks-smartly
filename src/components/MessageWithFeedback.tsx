@@ -19,8 +19,8 @@ const MessageWithFeedback: React.FC<MessageWithFeedbackProps> = ({
   const isAiMessage = !message.isUser;
   
   // Parse any relevant safety notices from the content
-  const hasPrivacyNotice = message.content.includes('*Note: I'm') || 
-                           message.content.includes('*Note: I\'m using offline mode');
+  const hasPrivacyNotice = message.content.includes("*Note: I'm") || 
+                           message.content.includes("*Note: I'm using offline mode");
   
   // Helper function to format message content with any privacy notices separately
   const formatMessageContent = () => {
