@@ -23,7 +23,9 @@ const AIModelSelector = () => {
   };
 
   const renderModelList = (models: AIModel[], provider: AIProvider) => {
-    const selectedModel = aiSettings[provider].selectedModel;
+    // Ensure aiSettings[provider] exists before accessing selectedModel
+    const providerSettings = aiSettings[provider] || {};
+    const selectedModel = providerSettings.selectedModel || models[0]?.id || '';
     
     return (
       <RadioGroup 

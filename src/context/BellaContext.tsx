@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
@@ -23,7 +22,6 @@ import type {
   TTSOptions
 } from '@/types/bella';
 
-// Re-export types properly
 export type { IntegrationType } from '@/types/bella';
 
 export interface BellaContextType {
@@ -32,8 +30,8 @@ export interface BellaContextType {
   isTalking: boolean;
   mood: BellaMood;
   ttsOptions: TTSOptions;
-  aiSettings: any; // We'll fix this type later in a refactoring
-  googleAPISettings: any; // We'll fix this type later in a refactoring
+  aiSettings: any;
+  googleAPISettings: any;
   activeProvider: string;
   integrations: Integrations;
   userPreferences: UserPreference[];
@@ -59,11 +57,22 @@ export interface BellaContextType {
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
 
-// Default settings for providers
 const defaultAISettings = {
+  openai: {
+    apiKey: '',
+    selectedModel: 'gpt-4o-mini',
+    temperature: 0.7,
+    maxTokens: 1000
+  },
   openRouter: {
     apiKey: '',
     selectedModel: 'anthropic/claude-3-sonnet:beta',
+    temperature: 0.7,
+    maxTokens: 1000
+  },
+  anthropic: {
+    apiKey: '',
+    selectedModel: 'claude-3-sonnet',
     temperature: 0.7,
     maxTokens: 1000
   },
@@ -74,7 +83,6 @@ const defaultAISettings = {
   }
 };
 
-// Default privacy settings
 const defaultPrivacySettings: PrivacySettings = {
   saveConversationHistory: true,
   useDataForImprovement: false,
@@ -82,7 +90,6 @@ const defaultPrivacySettings: PrivacySettings = {
   allowThirdPartyProcessing: false
 };
 
-// Default safety guardrails
 const defaultSafetyGuardrails: SafetyGuardrails = {
   contentFiltering: true,
   sensitiveTopicsBlocked: ['illegal activities', 'harmful content'],
@@ -104,28 +111,31 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isTalking, setIsTalking] = useState(false);
   const [mood, setMood] = useState<BellaMood>('neutral');
   
-  // Enhanced TTS options for a more confident, articulate U.S. female voice in her mid-20s
   const [ttsOptions, setTTSOptions] = useState<TTSOptions>({
-    voice: 'en-US-Neural2-F', // Default to Aria voice
-    pitch: 1.05, // Slightly higher for a younger sound
-    rate: 1.0,  // Standard rate for articulate speech
+    voice: 'en-US-Neural2-F',
+    pitch: 1.05,
+    rate: 1.0,
     volume: 0.7,
     enhancedQuality: true
   });
   
-  // Load AI settings from localStorage or use defaults
   const loadedAISettings = localStorage.getItem('bella_ai_settings');
-  const initialAISettings = loadedAISettings ? JSON.parse(loadedAISettings) : defaultAISettings;
+  const parsedSettings = loadedAISettings ? JSON.parse(loadedAISettings) : {};
+  
+  const initialAISettings = {
+    openai: { ...defaultAISettings.openai, ...(parsedSettings.openai || {}) },
+    openRouter: { ...defaultAISettings.openRouter, ...(parsedSettings.openRouter || {}) },
+    anthropic: { ...defaultAISettings.anthropic, ...(parsedSettings.anthropic || {}) },
+    n8n: { ...defaultAISettings.n8n, ...(parsedSettings.n8n || {}) }
+  };
+  
   const [aiSettings, setAISettings] = useState<any>(initialAISettings);
   
-  // Load Google API settings from localStorage
   const [googleAPISettings, setGoogleAPISettings] = useState<any>(getGoogleAPISettings());
   
-  // Load active provider from localStorage or use default
   const savedProvider = localStorage.getItem('bella_active_provider');
   const [activeProvider, setActiveProvider] = useState<string>(savedProvider || 'openRouter');
   
-  // Integrations state
   const [integrations, setIntegrations] = useState<Integrations>({
     googleCalendar: { 
       type: 'googleCalendar', 
@@ -156,15 +166,12 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [userPreferences, setUserPreferences] = useState<UserPreference[]>([]);
   const { toast } = useToast();
   
-  // Privacy and safety settings
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(defaultPrivacySettings);
   const [safetyGuardrails, setSafetyGuardrails] = useState<SafetyGuardrails>(defaultSafetyGuardrails);
   
-  // Service availability state
   const [onlineServiceAvailable, setOnlineServiceAvailable] = useState(true);
   const [onlineServiceAttempts, setOnlineServiceAttempts] = useState(0);
   
-  // Offline Agents
   const [offlineAgents, setOfflineAgents] = useState<OfflineAgent[]>([
     {
       id: 'business-consultant',
@@ -230,17 +237,14 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const [activeAgent, setActiveAgent] = useState<AgentType>('general');
   
-  // Preload voices when context is first created
   useEffect(() => {
     preloadVoices().catch(err => {
       console.error('Failed to preload voices:', err);
     });
   }, []);
   
-  // Check online service availability periodically
   useEffect(() => {
     const checkServiceAvailability = async () => {
-      // This is a mock implementation - in production, this would ping your actual service
       try {
         const isAvailable = aiSettings.openRouter.apiKey !== '';
         setOnlineServiceAvailable(isAvailable);
@@ -254,24 +258,20 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     };
     
-    // Run check immediately and then every 30 seconds
     checkServiceAvailability();
     const interval = setInterval(checkServiceAvailability, 30000);
     
     return () => clearInterval(interval);
   }, [aiSettings]);
   
-  // Save AI settings to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('bella_ai_settings', JSON.stringify(aiSettings));
   }, [aiSettings]);
   
-  // Save active provider to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('bella_active_provider', activeProvider);
   }, [activeProvider]);
   
-  // Load privacy and safety settings from localStorage
   useEffect(() => {
     const savedPrivacySettings = localStorage.getItem('bella_privacy_settings');
     if (savedPrivacySettings) {
@@ -284,7 +284,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
   
-  // Save settings to localStorage when they change
   useEffect(() => {
     localStorage.setItem('bella_privacy_settings', JSON.stringify(privacySettings));
   }, [privacySettings]);
@@ -350,11 +349,9 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const addUserPreference = useCallback((key: string, value: string | number | boolean) => {
     setUserPreferences(prev => {
-      // Check if preference already exists
       const existingIndex = prev.findIndex(p => p.key === key);
       
       if (existingIndex >= 0) {
-        // Update existing preference
         const updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
@@ -363,7 +360,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
         return updated;
       } else {
-        // Add new preference
         return [...prev, {
           key,
           value,
@@ -373,7 +369,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, []);
   
-  // Handle safety filtering
   const filterMessageForSafety = useCallback((content: string): {safe: boolean, filteredContent: string} => {
     if (!safetyGuardrails.contentFiltering) {
       return { safe: true, filteredContent: content };
@@ -382,7 +377,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let isSafe = true;
     let filteredContent = content;
     
-    // Check for blocked topics
     for (const topic of safetyGuardrails.sensitiveTopicsBlocked) {
       if (content.toLowerCase().includes(topic.toLowerCase())) {
         isSafe = false;
@@ -391,7 +385,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     
-    // Check for explicit content if not allowed
     if (isSafe && !safetyGuardrails.allowExplicitContent) {
       const explicitTerms = ['nsfw', 'explicit', 'porn', 'xxx', 'adult content'];
       for (const term of explicitTerms) {
@@ -406,12 +399,9 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return { safe: isSafe, filteredContent };
   }, [safetyGuardrails]);
   
-  // Submit feedback
   const submitFeedback = useCallback((feedback: FeedbackData) => {
-    // In a production app, this would be sent to a server
     console.log('Feedback submitted:', feedback);
     
-    // Update the message to include feedback
     setMessages(prev => 
       prev.map(message => 
         message.id === feedback.messageId 
@@ -426,12 +416,9 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [toast]);
   
-  // Report message
   const reportMessage = useCallback((messageId: string, reason: string) => {
-    // In a production app, this would be sent to a server
     console.log('Message reported:', messageId, reason);
     
-    // Update the message to mark it as reported
     setMessages(prev => 
       prev.map(message => 
         message.id === messageId 
@@ -446,7 +433,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [toast]);
   
-  // Update privacy settings
   const updatePrivacySettings = useCallback((settings: Partial<PrivacySettings>) => {
     setPrivacySettings(prev => ({
       ...prev,
@@ -459,7 +445,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [toast]);
   
-  // Update safety guardrails
   const updateSafetyGuardrails = useCallback((settings: Partial<SafetyGuardrails>) => {
     setSafetyGuardrails(prev => ({
       ...prev,
@@ -473,17 +458,12 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [toast]);
   
   const shouldUseOfflineMode = useCallback(() => {
-    // Logic to determine if we should use offline mode:
-    // 1. If online service isn't available at all
-    // 2. If we've tried multiple times and had issues
     return !onlineServiceAvailable || onlineServiceAttempts > 3;
   }, [onlineServiceAvailable, onlineServiceAttempts]);
   
   const sendMessage = useCallback(async (content: string) => {
-    // Process the message with intent recognition
     const safetyCheck = filterMessageForSafety(content);
     if (!safetyCheck.safe) {
-      // Add user message
       const newUserMessage: Message = {
         id: uuidv4(),
         content,
@@ -494,7 +474,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       setMessages(prev => [...prev, newUserMessage]);
       
-      // Add safety response
       const safetyResponse: Message = {
         id: uuidv4(),
         content: safetyCheck.filteredContent,
@@ -507,10 +486,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     
-    // Content is safe, proceed with normal processing
     const intentResult = analyzeIntent(content);
     
-    // Add user message
     const newUserMessage: Message = {
       id: uuidv4(),
       content,
@@ -523,15 +500,12 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setMessages(prev => [...prev, newUserMessage]);
     setIsThinking(true);
     
-    // Determine mood based on intent analysis
     const newMood = determineMood(intentResult as IntentResult);
     setMood(newMood);
     
-    // Extract and learn user preferences
     if (intentResult.contextualMemory?.userPreferences) {
       const preferences = intentResult.contextualMemory.userPreferences;
       
-      // Store detected preferences
       Object.entries(preferences).forEach(([key, value]) => {
         if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
           addUserPreference(key, value);
@@ -539,20 +513,16 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
     
-    // Determine if we should use online or offline mode
     const useOfflineMode = shouldUseOfflineMode();
     const currentProvider = useOfflineMode ? 'offline' : activeProvider;
     
-    // Get the model information for response generation
     let responseContent = '';
     
     try {
       if (currentProvider === 'openRouter' && aiSettings.openRouter.apiKey) {
-        // In a real app, this would call an edge function to protect the API key
         const selectedModel = aiSettings.openRouter.selectedModel;
         
         console.log(`Using OpenRouter with model: ${selectedModel}`);
-        // Simulate response generation
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
@@ -562,14 +532,11 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           selectedModel
         );
         
-        // Reset attempt counter on success
         setOnlineServiceAttempts(0);
       } else if (currentProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
-        // In a real app, this would call the n8n webhook
         const selectedWorkflow = aiSettings.n8n.selectedWorkflow;
         console.log(`Using n8n workflow: ${selectedWorkflow}`);
         
-        // Simulate response generation
         const responseTime = 1000 + Math.random() * 2000;
         await new Promise(resolve => setTimeout(resolve, responseTime));
         
@@ -579,17 +546,14 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           aiSettings.n8n.selectedWorkflow || ''
         );
         
-        // Reset attempt counter on success
         setOnlineServiceAttempts(0);
       } else {
-        // Use offline mode
         console.log('Using offline mode with built-in response generator');
         
         if (!useOfflineMode) {
           setOnlineServiceAttempts(prev => prev + 1);
         }
         
-        // Simulate variable thinking time based on complexity of the query
         const baseTime = 1000;
         const wordCount = content.split(/\s+/).length;
         const complexityFactor = Math.min(wordCount / 5, 3);
@@ -598,16 +562,13 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await new Promise(resolve => setTimeout(resolve, responseTime));
         responseContent = getIntentBasedResponse(intentResult as IntentResult, 'offline', 'bella-default');
         
-        // Add notice about offline mode if we should be online
         if (!useOfflineMode) {
           responseContent += "\n\n*Note: I'm currently using offline mode because there seems to be an issue with the online service. This may limit some of my capabilities. Please check your connection or try again later.*";
         }
       }
       
-      // Check for integration-specific actions
       if (intentResult.topIntent === 'calendar' && intentResult.entities && 
           intentResult.entities['event_title']) {
-        // If calendar action detected but not connected
         if (!integrations.googleCalendar.isConnected) {
           responseContent += "\n\nIt looks like you haven't connected your Google Calendar yet. Would you like to connect it now?";
         }
@@ -620,7 +581,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Error generating response:', error);
       responseContent = "I'm sorry, I encountered an error processing your request. Please try again later.";
       
-      // Increment attempt counter on error
       setOnlineServiceAttempts(prev => prev + 1);
       
       toast({
@@ -632,7 +592,6 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsThinking(false);
       setIsTalking(true);
       
-      // Add Bella's response
       const newBellaMessage: Message = {
         id: uuidv4(),
         content: responseContent,
@@ -643,18 +602,15 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       setMessages(prev => [...prev, newBellaMessage]);
       
-      // Simulate speech time with more natural variation
-      // Calculate speaking duration based on word count and natural pauses
       const responseWords = responseContent.split(/\s+/).length;
-      const wordsPerSecond = 2.5; // Average speaking speed
+      const wordsPerSecond = 2.5;
       const punctuationCount = (responseContent.match(/[.,;:!?]/g) || []).length;
-      const pauseTime = punctuationCount * 0.2; // 200ms pause per punctuation
+      const pauseTime = punctuationCount * 0.2;
       
       const speakingTime = (responseWords / wordsPerSecond) * 1000 + pauseTime * 1000;
       
       setTimeout(() => {
         setIsTalking(false);
-        // Don't reset mood immediately for a more natural experience
         setTimeout(() => {
           setMood('neutral');
         }, 2000);

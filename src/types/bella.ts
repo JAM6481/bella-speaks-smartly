@@ -1,4 +1,3 @@
-
 // Define main type exports
 export type Mood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
 
@@ -36,6 +35,8 @@ export interface AIProvider {
   endpoint?: string;
   models: AIModel[];
   selectedModel: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 export interface N8nSettings {
@@ -140,7 +141,31 @@ export interface BellaContextType {
   isTalking: boolean;
   mood: Mood;
   ttsOptions: TTSOptions;
-  aiSettings: AISettings;
+  aiSettings: {
+    openai: {
+      apiKey: string;
+      selectedModel: string;
+      temperature: number;
+      maxTokens: number;
+    };
+    openRouter: {
+      apiKey: string;
+      selectedModel: string;
+      temperature: number;
+      maxTokens: number;
+    };
+    anthropic: {
+      apiKey: string;
+      selectedModel: string;
+      temperature: number;
+      maxTokens: number;
+    };
+    n8n: {
+      webhookUrl: string;
+      apiKey: string;
+      selectedWorkflow: string;
+    };
+  };
   googleAPI: GoogleAPISettings;
   offlineAgents: OfflineAgent[];
   activeProvider: 'openai' | 'openrouter' | 'anthropic' | 'n8n';
