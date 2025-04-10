@@ -1,6 +1,8 @@
 
 // Utilities for enhanced multimodal interaction
 
+type InteractionType = 'voice' | 'text' | 'touch';
+
 /**
  * Detects the optimal interaction modality based on user behavior and context
  * @param userInteractions - Recent user interaction history
@@ -8,39 +10,37 @@
  * @returns The recommended interaction modality
  */
 export const detectOptimalModality = (
-  userInteractions: { type: string; timestamp: number }[],
+  userInteractions: { type: InteractionType; timestamp: number }[],
   deviceCapabilities: {
     hasMicrophone: boolean;
     hasCamera: boolean;
     hasTouchscreen: boolean;
     hasKeyboard: boolean;
   }
-): 'voice' | 'text' | 'touch' => {
+): InteractionType => {
   // Count recent interactions by type
   const recentInteractions = userInteractions.filter(
     i => Date.now() - i.timestamp < 5 * 60 * 1000 // Last 5 minutes
   );
   
-  const interactionCounts: Record<string, number> = {
+  const interactionCounts: Record<InteractionType, number> = {
     voice: 0,
     text: 0,
     touch: 0
   };
   
   recentInteractions.forEach(interaction => {
-    if (interactionCounts[interaction.type] !== undefined) {
-      interactionCounts[interaction.type]++;
-    }
+    interactionCounts[interaction.type]++;
   });
   
   // Determine most used modality
-  let preferredModality: 'voice' | 'text' | 'touch' = 'text'; // Default
+  let preferredModality: InteractionType = 'text'; // Default
   let maxCount = 0;
   
   Object.entries(interactionCounts).forEach(([modality, count]) => {
     if (count > maxCount) {
       maxCount = count;
-      preferredModality = modality as 'voice' | 'text' | 'touch';
+      preferredModality = modality as InteractionType;
     }
   });
   
@@ -93,7 +93,7 @@ export const detectDeviceCapabilities = async (): Promise<{
  * @param interactionData - Additional interaction data
  */
 export const trackUserInteraction = (
-  interactionType: 'voice' | 'text' | 'touch',
+  interactionType: InteractionType,
   interactionData?: any
 ): void => {
   // Create interaction record

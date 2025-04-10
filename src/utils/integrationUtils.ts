@@ -1,5 +1,5 @@
 
-import { IntegrationType, GoogleAPISettings } from '@/types/bella';
+import { IntegrationType } from '@/types/bella';
 
 // Mock functions for integration (in a real app, these would connect to actual services)
 export const mockConnectIntegration = async (type: IntegrationType): Promise<boolean> => {
@@ -47,13 +47,13 @@ export const testServiceConnection = async (serviceUrl: string, apiKey?: string)
 };
 
 // Google API integration details
-export interface GoogleAPISettings {
+export interface GoogleAPIConfig {
   clientId: string;
   apiKey: string;
   scopes: string[];
 }
 
-export const googleAPIDefaults: GoogleAPISettings = {
+export const googleAPIDefaults: GoogleAPIConfig = {
   clientId: '',
   apiKey: '',
   scopes: [
@@ -64,12 +64,12 @@ export const googleAPIDefaults: GoogleAPISettings = {
 };
 
 // Function to store Google API settings to localStorage
-export const saveGoogleAPISettings = (settings: GoogleAPISettings): void => {
+export const saveGoogleAPISettings = (settings: GoogleAPIConfig): void => {
   localStorage.setItem('bella_google_api_settings', JSON.stringify(settings));
 };
 
 // Function to retrieve Google API settings from localStorage
-export const getGoogleAPISettings = (): GoogleAPISettings => {
+export const getGoogleAPISettings = (): GoogleAPIConfig => {
   const saved = localStorage.getItem('bella_google_api_settings');
   if (saved) {
     try {

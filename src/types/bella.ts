@@ -53,8 +53,10 @@ export interface AISettings {
 
 export interface GoogleAPISettings {
   apiKey: string;
-  searchEngineId: string;
-  isConnected: boolean;
+  clientId: string;
+  searchEngineId?: string;
+  scopes: string[];
+  isConnected?: boolean;
 }
 
 export interface OfflineAgent {
