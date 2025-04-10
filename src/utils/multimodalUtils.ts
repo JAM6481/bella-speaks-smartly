@@ -49,6 +49,8 @@ export const detectOptimalModality = (
     preferredModality = deviceCapabilities.hasTouchscreen ? 'touch' : 'text';
   } else if (preferredModality === 'touch' && !deviceCapabilities.hasTouchscreen) {
     preferredModality = deviceCapabilities.hasMicrophone ? 'voice' : 'text';
+  } else if (preferredModality === 'text' && !deviceCapabilities.hasKeyboard) {
+    preferredModality = deviceCapabilities.hasMicrophone ? 'voice' : 'touch';
   }
   
   return preferredModality;
