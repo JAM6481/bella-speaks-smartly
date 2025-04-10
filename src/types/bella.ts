@@ -1,3 +1,4 @@
+
 // Define main type exports
 export type Mood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited';
 
@@ -20,37 +21,38 @@ export type Message = {
   hasBeenReported?: boolean;
 };
 
-export interface AIModel {
+export type AIModel = {
   id: string;
   name: string;
   provider: string;
   description: string;
   maxTokens: number;
   costPerToken: number;
-}
+  isPremium?: boolean;
+  contextLength?: number;
+};
 
-export interface AIProvider {
-  name: string;
+export type AIProvider = 'openai' | 'openrouter' | 'anthropic' | 'n8n';
+
+export type AIProviderSettings = {
   apiKey: string;
-  endpoint?: string;
-  models: AIModel[];
   selectedModel: string;
-  temperature?: number;
-  maxTokens?: number;
-}
+  temperature: number;
+  maxTokens: number;
+};
 
-export interface N8nSettings {
+export type N8nSettings = {
   webhookUrl: string;
   apiKey?: string;
   selectedWorkflow?: string;
-}
+};
 
-export interface AISettings {
-  openAI: AIProvider;
-  openRouter: AIProvider;
-  anthropic: AIProvider;
+export type AISettings = {
+  openai: AIProviderSettings;
+  openRouter: AIProviderSettings;
+  anthropic: AIProviderSettings;
   n8n: N8nSettings;
-}
+};
 
 export interface GoogleAPISettings {
   apiKey: string;
@@ -141,42 +143,18 @@ export interface BellaContextType {
   isTalking: boolean;
   mood: Mood;
   ttsOptions: TTSOptions;
-  aiSettings: {
-    openai: {
-      apiKey: string;
-      selectedModel: string;
-      temperature: number;
-      maxTokens: number;
-    };
-    openRouter: {
-      apiKey: string;
-      selectedModel: string;
-      temperature: number;
-      maxTokens: number;
-    };
-    anthropic: {
-      apiKey: string;
-      selectedModel: string;
-      temperature: number;
-      maxTokens: number;
-    };
-    n8n: {
-      webhookUrl: string;
-      apiKey: string;
-      selectedWorkflow: string;
-    };
-  };
+  aiSettings: AISettings;
   googleAPI: GoogleAPISettings;
   offlineAgents: OfflineAgent[];
-  activeProvider: 'openai' | 'openrouter' | 'anthropic' | 'n8n';
+  activeProvider: AIProvider;
   integrations: Integrations;
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
-  updateAISettings: (provider: string, settings: Partial<AIProvider | N8nSettings>) => void;
+  updateAISettings: (provider: AIProvider, settings: Partial<AIProviderSettings | N8nSettings>) => void;
   updateGoogleAPISettings: (settings: Partial<GoogleAPISettings>) => void;
   updateOfflineAgent: (agentId: string, settings: Partial<OfflineAgent>) => void;
-  setActiveProvider: (provider: 'openai' | 'openrouter' | 'anthropic' | 'n8n') => void;
+  setActiveProvider: (provider: AIProvider) => void;
   updateIntegration: (key: string, settings: Partial<Integration>) => void;
   submitFeedback: (feedback: FeedbackData) => void;
   reportMessage: (messageId: string, reason: string) => void;

@@ -1,3 +1,4 @@
+
 // Utilities to optimize response time and performance
 
 /**
@@ -16,6 +17,12 @@ export const detectNetworkConditions = async (): Promise<{
     isOfflineMode: false
   };
   
+  // Check if we're offline first
+  result.isOfflineMode = !navigator.onLine;
+  if (result.isOfflineMode) {
+    return result; // Return early if offline
+  }
+  
   // Get network information if available
   if ('connection' in navigator) {
     const connection = (navigator as any).connection;
@@ -25,22 +32,25 @@ export const detectNetworkConditions = async (): Promise<{
     }
   }
   
-  // Check if offline
-  result.isOfflineMode = !navigator.onLine;
-  
   // Measure latency with a simple ping test
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+    
     const startTime = performance.now();
     const response = await fetch('/ping', { 
       method: 'HEAD',
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 'Cache-Control': 'no-cache' },
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+    
     const endTime = performance.now();
     result.latency = endTime - startTime;
   } catch (error) {
     console.warn('Latency test failed, using estimate:', error);
-    // Use a reasonable default based on connection type
+    // Use a reasonable default based on connection type or a static fallback
     if (result.connectionType === '4g') {
       result.latency = 100;
     } else if (result.connectionType === '3g') {
@@ -157,13 +167,47 @@ export function createCachedFunction<T, A extends any[]>(
     
     // Clean up expired entries occasionally
     if (Math.random() < 0.1) { // 10% chance to clean up on each call
+      const now = Date.now();
       for (const [key, entry] of cache.entries()) {
-        if (Date.now() - entry.timestamp > ttlMs) {
+        if (now - entry.timestamp > ttlMs) {
           cache.delete(key);
         }
       }
     }
     
     return result;
+  };
+}
+
+/**
+ * Creates an auto-retry wrapper for API calls
+ */
+export function createRetryableFunction<T, A extends any[]>(
+  fn: (...args: A) => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000,
+  shouldRetry: (error: any) => boolean = () => true
+): (...args: A) => Promise<T> {
+  return async (...args: A): Promise<T> => {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        return await fn(...args);
+      } catch (error) {
+        lastError = error;
+        
+        if (!shouldRetry(error) || attempt >= maxRetries - 1) {
+          break;
+        }
+        
+        // Exponential backoff with jitter
+        const delay = baseDelayMs * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
+        console.log(`Attempt ${attempt + 1} failed, retrying in ${Math.round(delay)}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw lastError;
   };
 }
