@@ -1,3 +1,4 @@
+
 // Utilities for enhanced multimodal interaction
 
 type InteractionType = 'voice' | 'text' | 'touch';
@@ -36,13 +37,14 @@ export const detectOptimalModality = (
   let preferredModality: InteractionType = 'text'; // Default
   let maxCount = 0;
   
-  // Using type-safe approach with Object.entries and proper type assertions
-  (Object.entries(interactionCounts) as [InteractionType, number][]).forEach(([modality, count]) => {
+  // Using a type-safe approach with known literal types
+  for (const modalityType of ['voice', 'text', 'touch'] as const) {
+    const count = interactionCounts[modalityType];
     if (count > maxCount) {
       maxCount = count;
-      preferredModality = modality;
+      preferredModality = modalityType;
     }
-  });
+  }
   
   // Validate against device capabilities with proper type handling
   if (preferredModality === 'voice' && !deviceCapabilities.hasMicrophone) {
