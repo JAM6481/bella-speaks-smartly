@@ -1,390 +1,161 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Volume, VolumeX, Play, Square, SkipForward, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { synthesizeSpeech, cancelSpeech, availableVoices } from '@/utils/ttsService';
-import type { TTSOptions } from '@/types/bella';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import React, { useState, useEffect, useCallback } from 'react';
+import { synthesizeSpeech, cancelSpeech, TTSOptions } from '@/utils/ttsService';
+import PlaybackIndicator from '@/components/speech/PlaybackIndicator';
+import SpeechControls from '@/components/speech/SpeechControls';
+import VoiceSelector from '@/components/speech/VoiceSelector';
 
 interface EnhancedSpeechSynthesisProps {
   text: string;
   autoPlay?: boolean;
-  onStart?: () => void;
+  options: TTSOptions;
   onEnd?: () => void;
-  options?: TTSOptions;
-  onOptionsChange?: (options: TTSOptions) => void;
+  onError?: (error: Error) => void;
 }
 
 const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
   text,
   autoPlay = false,
-  onStart,
+  options,
   onEnd,
-  options = { voice: 'en-US-Neural2-F', volume: 0.7 },
-  onOptionsChange,
+  onError
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [volume, setVolume] = useState([options.volume ? options.volume * 100 : 70]);
-  const [progress, setProgress] = useState(0);
-  const [showWaveform, setShowWaveform] = useState(true);
-  const [enhancedQuality, setEnhancedQuality] = useState(options.enhancedQuality ?? true);
-  
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
-  const durationRef = useRef<number>(0);
-  const startTimeRef = useRef<number>(0);
-  
-  const startSpeech = async () => {
-    if (!text.trim()) return;
-    
-    try {
+  const [volume, setVolume] = useState(options.volume || 0.7);
+  const [error, setError] = useState<Error | null>(null);
+  const [showControls, setShowControls] = useState(false);
+
+  // Clean up function to cancel any ongoing speech
+  const cleanup = useCallback(() => {
+    if (isPlaying) {
       cancelSpeech();
-      
-      setIsPlaying(true);
-      setProgress(0);
-      startTimeRef.current = Date.now();
-      if (onStart) onStart();
-      
-      const speechOptions: TTSOptions = {
-        voice: options.voice,
-        volume: isMuted ? 0 : volume[0] / 100,
-        rate: options.rate,
-        pitch: options.pitch,
-        enhancedQuality
+      setIsPlaying(false);
+    }
+  }, [isPlaying]);
+
+  // Cancel speech synthesis when component unmounts
+  useEffect(() => {
+    return cleanup;
+  }, [cleanup]);
+
+  // Play speech when autoPlay is true or when options change
+  useEffect(() => {
+    if (autoPlay && text) {
+      handlePlay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, text]);
+
+  const handlePlay = async () => {
+    try {
+      cleanup();
+      setError(null);
+
+      // Use current volume state for speech
+      const speechOptions = {
+        ...options,
+        volume: isMuted ? 0 : volume
       };
+
+      setIsPlaying(true);
+      const result = await synthesizeSpeech(text, speechOptions);
       
-      // Force browser to reload voices to apply change immediately
-      if (window.speechSynthesis) {
-        console.log("Getting voices before speech");
-        window.speechSynthesis.getVoices();
-      }
-      
-      const response = await synthesizeSpeech(text, speechOptions);
-      durationRef.current = response.duration;
-      
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
-      
-      progressInterval.current = setInterval(() => {
-        const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        const newProgress = Math.min(100, (elapsed / durationRef.current) * 100);
-        setProgress(newProgress);
-        
-        if (newProgress >= 100) {
-          handleSpeechEnd();
-        }
-      }, 50);
-    } catch (error) {
-      console.error('Error starting speech synthesis:', error);
-      handleSpeechEnd();
+      // Speech completed successfully
+      setIsPlaying(false);
+      if (onEnd) onEnd();
+    } catch (err) {
+      setIsPlaying(false);
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      if (onError) onError(error);
+      console.error('Speech synthesis error:', error);
     }
   };
-  
-  const handleSpeechEnd = () => {
-    setIsPlaying(false);
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-      progressInterval.current = null;
+
+  const togglePlay = () => {
+    if (isPlaying) {
+      cleanup();
+    } else {
+      handlePlay();
     }
-    if (onEnd) onEnd();
   };
-  
-  const stopSpeech = () => {
-    cancelSpeech();
-    handleSpeechEnd();
-  };
-  
+
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    if (!isMuted) {
+    
+    // If currently playing, update the volume immediately
+    if (isPlaying) {
       cancelSpeech();
-    }
-    if (onOptionsChange) {
-      onOptionsChange({
-        ...options,
-        volume: !isMuted ? 0 : volume[0] / 100
-      });
+      
+      // Resume with new volume setting
+      setTimeout(() => {
+        handlePlay();
+      }, 50);
     }
   };
-  
-  const handleVolumeChange = (newVolume: number[]) => {
+
+  const handleVolumeChange = (value: number[]) => {
+    const newVolume = value[0] / 100;
     setVolume(newVolume);
-    if (onOptionsChange) {
-      onOptionsChange({
-        ...options,
-        volume: newVolume[0] / 100
-      });
-    }
-  };
-  
-  const handleVoiceChange = (value: string) => {
-    console.log("Voice changed to:", value);
-    if (onOptionsChange) {
-      onOptionsChange({
-        ...options,
-        voice: value
-      });
-    }
     
-    // Force browser to reload voices to prepare for next synthesis
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance("");
-      
-      // Find the corresponding voice info
-      const voiceInfo = availableVoices.find(v => v.id === value);
-      if (voiceInfo) {
-        // Try to find a matching voice in the browser
-        const voices = window.speechSynthesis.getVoices();
-        const matchedVoice = voices.find(v => 
-          v.name === voiceInfo.name || 
-          v.name.includes(voiceInfo.name)
-        );
-        if (matchedVoice) {
-          utterance.voice = matchedVoice;
-          console.log(`Selected browser voice: ${matchedVoice.name}`);
-        }
-      }
-      
-      // We don't actually want to hear anything, just load the voice
-      utterance.volume = 0;
-      utterance.text = "";
-      window.speechSynthesis.speak(utterance);
-    }
-  };
-  
-  const handleQualityToggle = (checked: boolean) => {
-    setEnhancedQuality(checked);
-    if (onOptionsChange) {
-      onOptionsChange({
-        ...options,
-        enhancedQuality: checked
-      });
-    }
-  };
-  
-  const skipSpeech = () => {
-    stopSpeech();
-    setProgress(100);
-  };
-  
-  useEffect(() => {
-    if (autoPlay && !isMuted && text) {
-      startSpeech();
-    }
-    
-    return () => {
-      if (progressInterval.current) {
-        clearInterval(progressInterval.current);
-      }
+    // If currently playing, update the volume immediately
+    if (isPlaying) {
       cancelSpeech();
-    };
-  }, [text, autoPlay, isMuted]);
+      
+      // Resume with new volume setting
+      setTimeout(() => {
+        handlePlay();
+      }, 50);
+    }
+  };
   
-  if (!text) return null;
-  
+  const handleVoiceChange = (voiceId: string) => {
+    // Update the TTS options with the new voice
+    options.voice = voiceId;
+    
+    // If currently playing, restart speech with new voice
+    if (isPlaying) {
+      cancelSpeech();
+      
+      // Resume with new voice
+      setTimeout(() => {
+        handlePlay();
+      }, 50);
+    }
+  };
+
   return (
-    <div className="flex flex-col space-y-2 w-full">
-      {showWaveform && (
-        <div className="relative h-8 w-full overflow-hidden rounded-lg bg-gradient-to-r from-blue-500/10 to-blue-600/10 dark:from-blue-500/5 dark:to-blue-600/5">
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <motion.div 
-              className="absolute inset-0 bg-blue-500/20"
-              style={{ width: `${progress}%` }}
-              initial={{ width: '0%' }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.1, ease: 'linear' }}
-            />
-            
-            {isPlaying && (
-              <div className="flex space-x-1 absolute inset-0">
-                {Array.from({ length: 40 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="h-full w-1 bg-blue-500/40"
-                    initial={{ height: '10%' }}
-                    animate={{ 
-                      height: ['20%', `${30 + Math.random() * 70}%`, '20%'] 
-                    }}
-                    transition={{ 
-                      duration: 0.4 + Math.random() * 0.8, 
-                      repeat: Infinity,
-                      repeatType: 'reverse',
-                      ease: 'easeInOut',
-                      delay: i * 0.05 % 0.8
-                    }}
-                    style={{
-                      opacity: 0.2 + Math.random() * 0.8
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+    <div 
+      className="relative"
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => !isPlaying && setShowControls(false)}
+    >
+      <PlaybackIndicator isPlaying={isPlaying} text={text} />
+      
+      <div className="flex justify-between items-center">
+        <SpeechControls
+          isPlaying={isPlaying}
+          isMuted={isMuted}
+          volume={volume}
+          togglePlay={togglePlay}
+          toggleMute={toggleMute}
+          handleVolumeChange={handleVolumeChange}
+          showControls={showControls || isPlaying}
+        />
+        
+        <VoiceSelector
+          currentVoice={options.voice}
+          onVoiceChange={handleVoiceChange}
+          disabled={isPlaying}
+        />
+      </div>
+      
+      {error && (
+        <div className="text-xs text-red-500 mt-1">
+          Error: {error.message}
         </div>
       )}
-      
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleMute}
-                  className="h-8 w-8 rounded-full hover:bg-blue-500/10"
-                >
-                  {isMuted ? 
-                    <VolumeX className="h-4 w-4 text-blue-500" /> : 
-                    <Volume className="h-4 w-4 text-blue-500" />
-                  }
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isMuted ? "Unmute" : "Mute"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {!isPlaying ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={startSpeech}
-                    disabled={isMuted}
-                    className="h-8 w-8 rounded-full hover:bg-blue-500/10"
-                  >
-                    <Play className="h-4 w-4 text-blue-500" />
-                  </Button>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={stopSpeech}
-                    className="h-8 w-8 rounded-full hover:bg-blue-500/10"
-                  >
-                    <Square className="h-4 w-4 text-blue-500" />
-                  </Button>
-                )}
-              </TooltipTrigger>
-              <TooltipContent>
-                {!isPlaying ? "Play" : "Stop"}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={skipSpeech}
-                  className="h-8 w-8 rounded-full hover:bg-blue-500/10"
-                >
-                  <SkipForward className="h-4 w-4 text-blue-500" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Skip
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <div className="w-24 px-1">
-            <Slider
-              value={volume}
-              onValueChange={handleVolumeChange}
-              max={100}
-              step={1}
-              className="h-4"
-            />
-          </div>
-        </div>
-        
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-blue-500/10"
-            >
-              <Settings className="h-4 w-4 text-blue-500" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-80">
-            <div className="space-y-4">
-              <h4 className="font-medium text-sm">Voice Settings</h4>
-              
-              <div className="space-y-2">
-                <Label htmlFor="voice-select">Voice</Label>
-                <Select 
-                  value={options.voice}
-                  onValueChange={handleVoiceChange}
-                >
-                  <SelectTrigger id="voice-select">
-                    <SelectValue placeholder="Select a voice" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableVoices.map((voice) => (
-                      <SelectItem key={voice.id} value={voice.id}>
-                        {voice.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {availableVoices.find(v => v.id === options.voice)?.description}
-                </p>
-              </div>
-              
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="enhanced-quality" className="text-sm">Enhanced Quality</Label>
-                <Switch
-                  id="enhanced-quality"
-                  checked={enhancedQuality}
-                  onCheckedChange={handleQualityToggle}
-                />
-              </div>
-              
-              <div className="flex items-center justify-between space-x-2">
-                <Label htmlFor="show-waveform" className="text-sm">Show Waveform</Label>
-                <Switch
-                  id="show-waveform"
-                  checked={showWaveform}
-                  onCheckedChange={setShowWaveform}
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
     </div>
   );
 };
