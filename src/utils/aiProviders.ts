@@ -150,7 +150,7 @@ export interface AIProviderSettings {
     temperature: number;
     maxTokens: number;
   };
-  openRouter: {
+  openrouter: {
     apiKey: string;
     selectedModel: string;
     temperature: number;
@@ -176,7 +176,7 @@ export const defaultAISettings: AIProviderSettings = {
     temperature: 0.7,
     maxTokens: 1000
   },
-  openRouter: {
+  openrouter: {
     apiKey: '',
     selectedModel: 'anthropic/claude-3-sonnet:beta',
     temperature: 0.7,
@@ -208,7 +208,7 @@ export const getBestAvailableProvider = (settings: AIProviderSettings): AIProvid
   }
   
   // Then OpenRouter
-  if (settings.openRouter.apiKey) {
+  if (settings.openrouter.apiKey) {
     return 'openrouter';
   }
   

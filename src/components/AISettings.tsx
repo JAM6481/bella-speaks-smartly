@@ -32,7 +32,7 @@ const AISettings = () => {
               id="openrouter-api-key"
               type="password"
               placeholder="Enter your OpenRouter API key"
-              value={aiSettings.openRouter.apiKey}
+              value={aiSettings.openrouter.apiKey}
               onChange={(e) => updateAISettings('openrouter', { apiKey: e.target.value })}
               className="font-mono"
             />
@@ -45,12 +45,12 @@ const AISettings = () => {
             <div className="flex items-center justify-between">
               <Label htmlFor="openrouter-temperature">Temperature</Label>
               <span className="text-sm text-muted-foreground">
-                {aiSettings.openRouter.temperature.toFixed(1)}
+                {aiSettings.openrouter.temperature.toFixed(1)}
               </span>
             </div>
             <Slider
               id="openrouter-temperature"
-              value={[aiSettings.openRouter.temperature]}
+              value={[aiSettings.openrouter.temperature]}
               min={0}
               max={1}
               step={0.1}
@@ -65,11 +65,11 @@ const AISettings = () => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="openrouter-max-tokens">Max Tokens</Label>
-              <span className="text-sm text-muted-foreground">{aiSettings.openRouter.maxTokens}</span>
+              <span className="text-sm text-muted-foreground">{aiSettings.openrouter.maxTokens}</span>
             </div>
             <Slider
               id="openrouter-max-tokens"
-              value={[aiSettings.openRouter.maxTokens]}
+              value={[aiSettings.openrouter.maxTokens]}
               min={100}
               max={4000}
               step={100}
@@ -84,7 +84,7 @@ const AISettings = () => {
           <Button 
             className="w-full mt-4"
             variant="default"
-            disabled={!aiSettings.openRouter.apiKey}
+            disabled={!aiSettings.openrouter.apiKey}
             onClick={() => {
               // Would verify the API key in a real implementation
               alert('API key saved and validated.');

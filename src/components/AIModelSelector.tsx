@@ -24,7 +24,7 @@ const AIModelSelector = () => {
 
   const renderModelList = (models: AIModel[], provider: AIProvider) => {
     // Ensure aiSettings[provider] exists before accessing selectedModel
-    const providerSettings = aiSettings[provider] || {};
+    const providerSettings = aiSettings[provider] || { selectedModel: '' };
     const selectedModel = providerSettings.selectedModel || models[0]?.id || '';
     
     return (

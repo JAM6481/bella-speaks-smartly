@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, Bot, Network, Trophy } from 'lucide-react';
@@ -489,7 +488,7 @@ const BellaAssistant: React.FC = () => {
         >
           <ChatInterface 
             onSendMessage={sendMessage} 
-            messages={messages as Message[]}
+            messages={messages}
             isThinking={isThinking}
             ttsOptions={ttsOptions}
           />
