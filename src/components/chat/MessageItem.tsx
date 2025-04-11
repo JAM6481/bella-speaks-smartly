@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
@@ -8,8 +7,9 @@ import { TTSOptions } from '@/utils/ttsService';
 interface Message {
   id: string;
   content: string;
-  sender: 'user' | 'bella';
+  sender: 'user' | 'bella' | 'agent';
   timestamp: Date;
+  agentType?: string;
 }
 
 interface MessageItemProps {
