@@ -58,7 +58,7 @@ export const availableVoices = [
     name: 'Sophie',
     description: 'A British female voice with a warm, friendly quality'
   },
-  // Add some fallback voices that are likely available in most browsers
+  // Add browser-specific standard voices that are more likely to be available
   {
     id: 'Google US English',
     name: 'Google US',
@@ -66,13 +66,29 @@ export const availableVoices = [
   },
   {
     id: 'Google UK English Female',
-    name: 'Google UK',
+    name: 'Google UK Female',
     description: 'Standard Google UK English female voice'
+  },
+  {
+    id: 'Microsoft Zira Desktop - English (United States)',
+    name: 'Microsoft Zira',
+    description: 'Microsoft Zira female voice for English'
   },
   {
     id: 'Microsoft Zira',
     name: 'Zira',
     description: 'Microsoft Zira voice for English'
+  },
+  // Fallback voices with common browser identifiers
+  {
+    id: 'SamanthaCat',
+    name: 'Samantha',
+    description: 'Apple female voice (Safari only)'
+  },
+  {
+    id: 'female',
+    name: 'Default Female',
+    description: 'Generic female voice'
   }
 ];
 
@@ -121,6 +137,9 @@ export const synthesizeSpeech = async (
         const requestedVoiceId = options.voice;
         let selectedVoice = null;
         
+        console.log('Requested voice ID:', requestedVoiceId);
+        console.log('Available browser voices:', voices.map(v => `${v.name} (${v.lang})`));
+        
         // First try direct match with the voice ID
         selectedVoice = voices.find(v => v.name === requestedVoiceId);
         
@@ -140,6 +159,24 @@ export const synthesizeSpeech = async (
             if (selectedVoice) {
               console.log(`Using voice: ${selectedVoice.name} for ${voiceInfo.name}`);
             }
+          }
+        }
+        
+        // If still not found, look for any female voice
+        if (!selectedVoice) {
+          // Look for female voices by common patterns in voice names
+          selectedVoice = voices.find(v => 
+            v.name.includes('female') || 
+            v.name.includes('Female') ||
+            v.name.includes('Zira') ||
+            v.name.includes('Samantha') ||
+            v.name.includes('Google UK English Female') ||
+            (v.name.includes('Google') && v.name.includes('en-US') && v.name.includes('f')) || 
+            v.name.includes('Microsoft Zira')
+          );
+          
+          if (selectedVoice) {
+            console.log(`No exact match found, using female voice: ${selectedVoice.name}`);
           }
         }
         
@@ -169,6 +206,7 @@ export const synthesizeSpeech = async (
           utterance.voice = selectedVoice;
           // Remember it for future fallbacks
           lastUsedVoice = selectedVoice.name;
+          console.log(`Successfully set voice to: ${selectedVoice.name}`);
         }
       }
 
@@ -399,13 +437,16 @@ export const getBestYoungFemaleVoice = (): string => {
     'en-US-Wavenet-F',   // Second choice - wavenet
     'en-US-Neural2-C',   // Third choice - neural
     'en-US-Neural2-F',   // Fourth choice - neural
+    'Microsoft Zira Desktop - English (United States)',  // Common on Windows
+    'Microsoft Zira',    // Common on Windows (shorter name)
+    'Google UK English Female', // Common in Chrome
     'Google US English',  // Standard Google voice as fallback
-    'Google UK English Female' // Another standard fallback
   ];
   
   // Try each voice in order of preference
   try {
     const voices = getBrowserVoices();
+    console.log('Finding best female voice among:', voices.map(v => v.name));
     
     for (const voiceId of premiumVoices) {
       const voiceInfo = availableVoices.find(v => v.id === voiceId);
@@ -417,9 +458,32 @@ export const getBestYoungFemaleVoice = (): string => {
         );
         
         if (foundVoice) {
+          console.log(`Found best female voice: ${foundVoice.name}`);
           return voiceId;
         }
       }
+    }
+    
+    // If none of the premium voices match exactly, look for any female voice by name patterns
+    const femaleVoice = voices.find(v => 
+      v.name.includes('female') || 
+      v.name.includes('Female') ||
+      v.name.includes('Zira') ||
+      v.name.includes('Samantha')
+    );
+    
+    if (femaleVoice) {
+      console.log(`Found female voice by pattern: ${femaleVoice.name}`);
+      // Add this voice to our available voices if it's not already there
+      const existingVoice = availableVoices.find(v => v.id === femaleVoice.name);
+      if (!existingVoice) {
+        availableVoices.push({
+          id: femaleVoice.name,
+          name: femaleVoice.name,
+          description: `${femaleVoice.name} (${femaleVoice.lang})`
+        });
+      }
+      return femaleVoice.name;
     }
   } catch (error) {
     console.warn('Error finding best female voice:', error);

@@ -488,7 +488,7 @@ const BellaAssistant: React.FC = () => {
         >
           <ChatInterface 
             onSendMessage={sendMessage} 
-            messages={messages}
+            messages={messages as any}
             isThinking={isThinking}
             ttsOptions={ttsOptions}
           />

@@ -23,13 +23,21 @@ const AIModelSelector = () => {
   };
 
   const renderModelList = (models: AIModel[], provider: AIProvider) => {
-    // Ensure aiSettings[provider] exists before accessing selectedModel
-    const providerSettings = aiSettings[provider] || { selectedModel: '' };
+    // Ensure aiSettings[provider] exists before accessing properties
+    const providerSettings = aiSettings[provider] || {};
     
-    // Handle the case for n8n which uses selectedWorkflow instead of selectedModel
-    const selectedModel = provider === 'n8n' 
-      ? (aiSettings.n8n.selectedWorkflow || models[0]?.id || '')
-      : (providerSettings.selectedModel || models[0]?.id || '');
+    // Handle different provider types with proper type checking
+    let selectedModel = '';
+    
+    if (provider === 'n8n') {
+      // n8n uses selectedWorkflow instead of selectedModel
+      selectedModel = aiSettings.n8n.selectedWorkflow || models[0]?.id || '';
+    } else {
+      // For other providers that use selectedModel property
+      selectedModel = 'selectedModel' in providerSettings 
+        ? providerSettings.selectedModel 
+        : (models[0]?.id || '');
+    }
     
     return (
       <RadioGroup 
