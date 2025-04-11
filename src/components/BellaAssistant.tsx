@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, VolumeX, Moon, Sun, Trash2, Sliders, Bot, Network, Trophy } from 'lucide-react';
@@ -49,6 +50,7 @@ import { useBella } from '@/context/BellaContext';
 import { useToast } from '@/hooks/use-toast';
 import { availableVoices, preloadVoices } from '@/utils/ttsService';
 import { openAIModels, anthropicModels } from '@/utils/aiProviders';
+import type { Message } from '@/types/bella';
 
 const BellaAssistant: React.FC = () => {
   const { 
@@ -179,11 +181,11 @@ const BellaAssistant: React.FC = () => {
           {anthropicModels.find(m => m.id === aiSettings.anthropic.selectedModel)?.name || 'Claude'}
         </Badge>
       );
-    } else if (activeProvider === 'openrouter' && aiSettings.openRouter.apiKey) {
+    } else if (activeProvider === 'openrouter' && aiSettings.openrouter.apiKey) {
       return (
         <Badge className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
           <Bot className="w-3 h-3 mr-1" /> 
-          {aiSettings.openRouter.selectedModel.split('/')[1]?.split('-').slice(0, 2).join(' ')}
+          {aiSettings.openrouter.selectedModel.split('/')[1]?.split('-').slice(0, 2).join(' ')}
         </Badge>
       );
     } else if (activeProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
@@ -487,7 +489,7 @@ const BellaAssistant: React.FC = () => {
         >
           <ChatInterface 
             onSendMessage={sendMessage} 
-            messages={messages}
+            messages={messages as Message[]}
             isThinking={isThinking}
             ttsOptions={ttsOptions}
           />

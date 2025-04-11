@@ -50,7 +50,7 @@ export type N8nSettings = {
 
 export type AISettings = {
   openai: AIProviderSettings;
-  openRouter: AIProviderSettings;
+  openrouter: AIProviderSettings;
   anthropic: AIProviderSettings;
   n8n: N8nSettings;
 };

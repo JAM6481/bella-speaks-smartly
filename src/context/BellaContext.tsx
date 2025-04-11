@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +74,7 @@ const defaultAISettings: AISettings = {
     temperature: 0.7,
     maxTokens: 1000
   },
-  openRouter: {
+  openrouter: {
     apiKey: '',
     selectedModel: 'anthropic/claude-3-sonnet:beta',
     temperature: 0.7,
@@ -141,7 +142,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const initialAISettings: AISettings = {
     openai: { ...defaultAISettings.openai, ...(parsedSettings.openai || {}) },
-    openRouter: { ...defaultAISettings.openRouter, ...(parsedSettings.openRouter || {}) },
+    openrouter: { ...defaultAISettings.openrouter, ...(parsedSettings.openrouter || {}) },
     anthropic: { ...defaultAISettings.anthropic, ...(parsedSettings.anthropic || {}) },
     n8n: { ...defaultAISettings.n8n, ...(parsedSettings.n8n || {}) }
   };
@@ -151,7 +152,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [googleAPISettings, setGoogleAPISettings] = useState<any>(getGoogleAPISettings());
   
   const savedProvider = localStorage.getItem('bella_active_provider');
-  const [activeProvider, setActiveProvider] = useState<AIProvider>(savedProvider as AIProvider || 'openRouter');
+  const validProvider = (savedProvider as AIProvider) || 'openrouter';
+  const [activeProvider, setActiveProvider] = useState<AIProvider>(validProvider);
   
   const [integrations, setIntegrations] = useState<Integrations>({
     googleCalendar: { 
@@ -586,6 +588,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     
     const intentResult = analyzeIntent(content);
+    const shouldUseSpecializedAgent = intentResult.requiredAgent !== undefined;
+    const requiredAgentType = intentResult.requiredAgent || activeAgent;
     
     const newUserMessage: Message = {
       id: uuidv4(),
@@ -622,7 +626,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let responseAgentType: AgentType | undefined = undefined;
     
     try {
-      if (useSpecializedAgent) {
+      if (shouldUseSpecializedAgent) {
         const agent = offlineAgents.find(a => a.type === requiredAgentType);
         
         if (agent) {
@@ -634,7 +638,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             .replace('{query}', content) || '';
           
           if (!useOfflineMode && aiSettings[activeProvider] && 
-              (activeProvider === 'openRouter' ? aiSettings.openRouter.apiKey : true)) {
+              (activeProvider === 'openrouter' ? aiSettings.openrouter.apiKey : true)) {
             
             console.log(`Using ${activeProvider} for ${agent.name} agent response`);
             
@@ -731,8 +735,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           responseSender = 'bella';
         }
       } else {
-        if (currentProvider === 'openRouter' && aiSettings.openRouter.apiKey) {
-          const selectedModel = aiSettings.openRouter.selectedModel;
+        if (currentProvider === 'openrouter' && aiSettings.openrouter.apiKey) {
+          const selectedModel = aiSettings.openrouter.selectedModel;
           
           console.log(`Using OpenRouter with model: ${selectedModel}`);
           const responseTime = 1000 + Math.random() * 2000;
@@ -740,7 +744,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           responseContent = getIntentBasedResponse(
             intentResult as IntentResult, 
-            'openRouter', 
+            'openrouter', 
             selectedModel
           );
           
@@ -890,7 +894,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
     
     toast({
-      title: `${provider === 'openRouter' ? 'OpenRouter' : 'n8n'} settings updated`,
+      title: `${provider === 'openrouter' ? 'OpenRouter' : provider} settings updated`,
       description: "Your AI provider settings have been updated.",
     });
   }, [toast]);
