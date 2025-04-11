@@ -1,6 +1,7 @@
 
 // TTS Service for Bella AI Assistant
 import type { TTSOptions } from '@/types/bella';
+import { detectNetworkConditions } from '@/utils/responseOptimizer';
 
 // Re-export the TTSOptions type
 export type { TTSOptions };
@@ -56,14 +57,24 @@ export const availableVoices = [
     id: 'en-GB-Neural2-A',
     name: 'Sophie',
     description: 'A British female voice with a warm, friendly quality'
+  },
+  // Add some fallback voices that are likely available in most browsers
+  {
+    id: 'Google US English',
+    name: 'Google US',
+    description: 'Standard Google US English voice'
+  },
+  {
+    id: 'Google UK English Female',
+    name: 'Google UK',
+    description: 'Standard Google UK English female voice'
+  },
+  {
+    id: 'Microsoft Zira',
+    name: 'Zira',
+    description: 'Microsoft Zira voice for English'
   }
 ];
-
-// Hardcoded API keys for the TTS service
-const API_KEYS = {
-  TTS_API_KEY: "sk-tts-****************************",
-  VOICE_MODEL_KEY: "vm-*************************"
-};
 
 // Used to track the current utterance for cancellation
 let currentUtterance: SpeechSynthesisUtterance | null = null;
@@ -85,6 +96,12 @@ export const synthesizeSpeech = async (
   options: TTSOptions
 ): Promise<{ duration: number }> => {
   return new Promise((resolve, reject) => {
+    // First check if speech synthesis is supported
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported in this browser');
+      return resolve({ duration: 0 });
+    }
+    
     try {
       // Cancel any ongoing speech
       cancelSpeech();
@@ -96,52 +113,63 @@ export const synthesizeSpeech = async (
       // Set voice based on options
       const voices = getBrowserVoices();
       
-      // Check if the requested voice exists
-      const requestedVoiceId = options.voice;
-      let selectedVoice = null;
-      
-      // First try to find by ID match (from our availableVoices)
-      const voiceInfo = availableVoices.find(v => v.id === requestedVoiceId);
-      
-      if (voiceInfo) {
-        // Try to find the voice in the browser's available voices
-        selectedVoice = voices.find(v => 
-          v.name === voiceInfo.name || 
-          v.name.includes(voiceInfo.name) || 
-          v.name === requestedVoiceId
-        );
+      if (voices.length === 0) {
+        console.warn('No voices available, using browser default');
+        // Still continue with default voice rather than failing
+      } else {
+        // Check if the requested voice exists
+        const requestedVoiceId = options.voice;
+        let selectedVoice = null;
         
-        // If we found a matching voice, log for debugging
-        if (selectedVoice) {
-          console.log(`Using voice: ${selectedVoice.name} for ${voiceInfo.name}`);
-        }
-      }
-      
-      // If not found by name, try direct match or fallback
-      if (!selectedVoice) {
-        // Try to use the last successful voice if available
-        if (lastUsedVoice) {
-          selectedVoice = voices.find(v => v.name === lastUsedVoice);
-        }
+        // First try direct match with the voice ID
+        selectedVoice = voices.find(v => v.name === requestedVoiceId);
         
-        // If still not found, use any feminine voice as fallback
+        // If not found by direct ID, try to find by our voice list names
         if (!selectedVoice) {
-          selectedVoice = voices.find(v => v.name.includes('female') || v.name.includes('Female')) || 
-                          voices.find(v => v.lang === 'en-US' && (v.name.includes('Google') || v.name.includes('female'))) || 
-                          voices.find(v => v.lang === 'en-US') || 
-                          voices[0];
+          const voiceInfo = availableVoices.find(v => v.id === requestedVoiceId);
           
-          failedVoiceAttempts++;
-          console.warn(`Voice "${requestedVoiceId}" not found after ${failedVoiceAttempts} attempts, using fallback: ${selectedVoice?.name}`);
+          if (voiceInfo) {
+            // Try to find the voice in the browser's available voices
+            selectedVoice = voices.find(v => 
+              v.name === voiceInfo.name || 
+              v.name.includes(voiceInfo.name) || 
+              v.name === requestedVoiceId
+            );
+            
+            // If we found a matching voice, log for debugging
+            if (selectedVoice) {
+              console.log(`Using voice: ${selectedVoice.name} for ${voiceInfo.name}`);
+            }
+          }
         }
-      }
-      
-      // Set the voice for the utterance
-      utterance.voice = selectedVoice;
-      
-      // If we successfully set a voice, remember it for future fallbacks
-      if (selectedVoice) {
-        lastUsedVoice = selectedVoice.name;
+        
+        // If not found by name, try direct match or fallback to standard voices
+        if (!selectedVoice) {
+          // Try to use the last successful voice if available
+          if (lastUsedVoice) {
+            selectedVoice = voices.find(v => v.name === lastUsedVoice);
+          }
+          
+          // If still not found, try common voice names
+          if (!selectedVoice) {
+            // Try to find common voices that are likely available
+            selectedVoice = voices.find(v => 
+                               v.name.includes('Google') || 
+                               v.name.includes('Microsoft') ||
+                               v.lang.startsWith('en')) || 
+                             voices[0];
+            
+            failedVoiceAttempts++;
+            console.warn(`Voice "${requestedVoiceId}" not found after ${failedVoiceAttempts} attempts, using fallback: ${selectedVoice?.name}`);
+          }
+        }
+        
+        // Set the voice for the utterance if we found one
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+          // Remember it for future fallbacks
+          lastUsedVoice = selectedVoice.name;
+        }
       }
 
       // Apply enhanced quality settings
@@ -193,14 +221,28 @@ export const synthesizeSpeech = async (
         }
         currentUtterance = null;
         console.error(`Speech synthesis error: ${event.error}`);
-        reject(new Error(`Speech synthesis error: ${event.error}`));
+        
+        // Don't reject on not-allowed errors (common in some browsers without interaction)
+        if (event.error === 'not-allowed') {
+          console.warn('Speech synthesis not allowed. This usually requires user interaction first.');
+          resolve({ duration: 0 });
+        } else {
+          reject(new Error(`Speech synthesis error: ${event.error}`));
+        }
       };
 
-      // Start speaking
-      window.speechSynthesis.speak(utterance);
+      // Start speaking - wrapped in a try/catch to handle permission issues
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (speakError) {
+        console.warn('Error starting speech synthesis:', speakError);
+        // Resolve with zero duration instead of failing completely
+        resolve({ duration: 0 });
+      }
     } catch (error) {
-      console.error('Speech synthesis failed with error:', error);
-      reject(error);
+      console.error('Speech synthesis setup failed with error:', error);
+      // Resolve with zero duration instead of rejecting
+      resolve({ duration: 0 });
     }
   });
 };
@@ -210,12 +252,16 @@ export const synthesizeSpeech = async (
  */
 export const cancelSpeech = () => {
   if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();
-    currentUtterance = null;
-    
-    if (fallbackTimer) {
-      clearTimeout(fallbackTimer);
-      fallbackTimer = null;
+    try {
+      window.speechSynthesis.cancel();
+      currentUtterance = null;
+      
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+    } catch (error) {
+      console.warn('Error cancelling speech:', error);
     }
   }
 };
@@ -229,10 +275,14 @@ const getBrowserVoices = (): SpeechSynthesisVoice[] => {
   }
   
   if (window.speechSynthesis) {
-    const voices = window.speechSynthesis.getVoices();
-    if (voices.length > 0) {
-      cachedBrowserVoices = voices;
-      return voices;
+    try {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        cachedBrowserVoices = voices;
+        return voices;
+      }
+    } catch (error) {
+      console.warn('Error getting browser voices:', error);
     }
   }
   
@@ -252,54 +302,68 @@ export const getVoiceById = (voiceId: string): string => {
  * Preload voices to ensure they're available
  */
 export const preloadVoices = async () => {
+  if (!('speechSynthesis' in window)) {
+    console.warn('Speech synthesis not supported in this browser');
+    return [];
+  }
+  
   try {
-    if ('speechSynthesis' in window) {
-      // Try to load voices immediately
-      const initialVoices = window.speechSynthesis.getVoices();
-      if (initialVoices.length > 0) {
-        cachedBrowserVoices = initialVoices;
-        voicesReady = true;
-        
-        // Log available voices for debugging
-        console.log('Available browser voices:', initialVoices.map(v => `${v.name} (${v.lang})`));
-        return initialVoices;
-      }
+    // Try to load voices immediately
+    const initialVoices = window.speechSynthesis.getVoices();
+    if (initialVoices.length > 0) {
+      cachedBrowserVoices = initialVoices;
+      voicesReady = true;
       
-      // Wait for voices to be loaded
-      await new Promise<void>((resolve) => {
+      // Log available voices for debugging
+      console.log('Available browser voices:', initialVoices.map(v => `${v.name} (${v.lang})`));
+      return initialVoices;
+    }
+    
+    // Wait for voices to be loaded
+    await new Promise<void>((resolve) => {
+      try {
         window.speechSynthesis.onvoiceschanged = () => {
-          const voices = window.speechSynthesis.getVoices();
-          cachedBrowserVoices = voices;
-          voicesReady = true;
-          
-          // Log available voices for debugging
-          console.log('Available browser voices (after onvoiceschanged):', 
-            voices.map(v => `${v.name} (${v.lang})`));
+          try {
+            const voices = window.speechSynthesis.getVoices();
+            cachedBrowserVoices = voices;
+            voicesReady = true;
+            
+            // Log available voices for debugging
+            console.log('Available browser voices (after onvoiceschanged):', 
+              voices.map(v => `${v.name} (${v.lang})`));
+          } catch (error) {
+            console.warn('Error in onvoiceschanged handler:', error);
+          }
           resolve();
         };
-        
-        // Fallback in case voices are already loaded or event doesn't fire
-        setTimeout(() => {
-          if (!voicesReady) {
+      } catch (error) {
+        console.warn('Error setting onvoiceschanged handler:', error);
+        resolve();
+      }
+      
+      // Fallback in case voices are already loaded or event doesn't fire
+      setTimeout(() => {
+        if (!voicesReady) {
+          try {
             const voices = window.speechSynthesis.getVoices();
             if (voices.length > 0) {
               cachedBrowserVoices = voices;
               voicesReady = true;
               console.log('Available browser voices (after timeout):', 
                 voices.map(v => `${v.name} (${v.lang})`));
-              resolve();
             } else {
               console.warn('Speech synthesis voices not loaded in expected time');
               voicesReady = true;
-              resolve();
             }
+          } catch (error) {
+            console.warn('Error in voice loading timeout handler:', error);
           }
-        }, 2000);
-      });
-      
-      return cachedBrowserVoices;
-    }
-    return [];
+          resolve();
+        }
+      }, 2000);
+    });
+    
+    return cachedBrowserVoices;
   } catch (error) {
     console.error('Error loading voices:', error);
     return [];
@@ -312,13 +376,18 @@ export const preloadVoices = async () => {
 export const arePremiumVoicesAvailable = (): boolean => {
   if (!window.speechSynthesis) return false;
   
-  const voices = getBrowserVoices();
-  return voices.some(v => 
-    v.name.includes('Studio') || 
-    v.name.includes('Neural') || 
-    v.name.includes('Wavenet') || 
-    v.name.includes('Premium')
-  );
+  try {
+    const voices = getBrowserVoices();
+    return voices.some(v => 
+      v.name.includes('Studio') || 
+      v.name.includes('Neural') || 
+      v.name.includes('Wavenet') || 
+      v.name.includes('Premium')
+    );
+  } catch (error) {
+    console.warn('Error checking for premium voices:', error);
+    return false;
+  }
 };
 
 /**
@@ -329,24 +398,31 @@ export const getBestYoungFemaleVoice = (): string => {
     'en-US-Studio-O',    // First choice - premium studio
     'en-US-Wavenet-F',   // Second choice - wavenet
     'en-US-Neural2-C',   // Third choice - neural
-    'en-US-Neural2-F'    // Fourth choice - neural
+    'en-US-Neural2-F',   // Fourth choice - neural
+    'Google US English',  // Standard Google voice as fallback
+    'Google UK English Female' // Another standard fallback
   ];
   
   // Try each voice in order of preference
-  const voices = getBrowserVoices();
-  
-  for (const voiceId of premiumVoices) {
-    const voiceInfo = availableVoices.find(v => v.id === voiceId);
-    if (voiceInfo) {
-      const foundVoice = voices.find(v => 
-        v.name === voiceInfo.name || 
-        v.name.includes(voiceInfo.name)
-      );
-      
-      if (foundVoice) {
-        return voiceId;
+  try {
+    const voices = getBrowserVoices();
+    
+    for (const voiceId of premiumVoices) {
+      const voiceInfo = availableVoices.find(v => v.id === voiceId);
+      if (voiceInfo) {
+        const foundVoice = voices.find(v => 
+          v.name === voiceInfo.name || 
+          v.name.includes(voiceInfo.name) ||
+          v.name === voiceId
+        );
+        
+        if (foundVoice) {
+          return voiceId;
+        }
       }
     }
+  } catch (error) {
+    console.warn('Error finding best female voice:', error);
   }
   
   // If no premium voices found, return default

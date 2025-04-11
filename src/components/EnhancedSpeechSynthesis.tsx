@@ -25,6 +25,16 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
   const [volume, setVolume] = useState(options.volume || 0.7);
   const [error, setError] = useState<Error | null>(null);
   const [showControls, setShowControls] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+
+  // Check if speech synthesis is supported
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) {
+      setSpeechSupported(false);
+      setError(new Error('Speech synthesis is not supported in this browser'));
+      if (onError) onError(new Error('Speech synthesis is not supported in this browser'));
+    }
+  }, [onError]);
 
   // Clean up function to cancel any ongoing speech
   const cleanup = useCallback(() => {
@@ -41,11 +51,11 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
 
   // Play speech when autoPlay is true or when options change
   useEffect(() => {
-    if (autoPlay && text) {
+    if (autoPlay && text && speechSupported) {
       handlePlay();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoPlay, text]);
+  }, [autoPlay, text, speechSupported]);
 
   const handlePlay = async () => {
     try {
@@ -60,6 +70,16 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
 
       setIsPlaying(true);
       const result = await synthesizeSpeech(text, speechOptions);
+      
+      // If speech duration is 0, it means it failed silently (permissions/not-allowed/etc)
+      if (result.duration === 0) {
+        console.warn('Speech synthesis completed with zero duration - likely failed silently');
+        
+        // Don't show an error to the user for permission issues
+        setIsPlaying(false);
+        if (onEnd) onEnd();
+        return;
+      }
       
       // Speech completed successfully
       setIsPlaying(false);
@@ -125,6 +145,11 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
     }
   };
 
+  // Don't render controls if speech synthesis is not supported
+  if (!speechSupported) {
+    return null;
+  }
+
   return (
     <div 
       className="relative"
@@ -153,7 +178,9 @@ const EnhancedSpeechSynthesis: React.FC<EnhancedSpeechSynthesisProps> = ({
       
       {error && (
         <div className="text-xs text-red-500 mt-1">
-          Error: {error.message}
+          {error.message.includes('not-allowed') 
+            ? 'Speech requires user interaction first. Click play to enable speech.'
+            : `Error: ${error.message}`}
         </div>
       )}
     </div>

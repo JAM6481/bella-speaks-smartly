@@ -15,7 +15,8 @@ export type Message = {
   content: string;
   isUser: boolean;
   timestamp: Date;
-  sender: 'user' | 'bella';
+  sender: 'user' | 'bella' | 'agent';
+  agentType?: AgentType;
   intentResult?: IntentResult;
   feedbackRating?: number;
   hasBeenReported?: boolean;
@@ -73,6 +74,15 @@ export interface OfflineAgent {
   type: AgentType;
   isAvailable?: boolean;
   expertise?: string[];
+  promptTemplate?: string;
+  examples?: AgentExample[];
+  memorySize?: number;
+}
+
+export interface AgentExample {
+  userInput: string;
+  agentResponse: string;
+  context?: string;
 }
 
 export type IntegrationType = 'supabase' | 'google' | 'zapier' | 'webhooks' | 'googleCalendar' | 'googleContacts' | 'gmail' | 'outlookEmail';
@@ -91,7 +101,7 @@ export interface Integrations {
 
 export type BellaMood = 'neutral' | 'happy' | 'thinking' | 'confused' | 'excited' | 'surprised' | 'concerned' | 'curious';
 
-export type AgentType = 'researcher' | 'writer' | 'analyst' | 'creative' | 'assistant' | 'general' | 'business' | 'coding' | 'medical' | 'finance' | 'social';
+export type AgentType = 'researcher' | 'writer' | 'analyst' | 'creative' | 'assistant' | 'general' | 'business' | 'coding' | 'medical' | 'finance' | 'social' | 'productivity';
 
 export type UserPreference = {
   key?: string;
@@ -100,7 +110,10 @@ export type UserPreference = {
   darkMode?: boolean;
   voiceOutput?: boolean;
   autoSuggest?: boolean;
+  preferredAgents?: AgentType[];
 };
+
+export type InteractionType = 'voice' | 'text' | 'touch';
 
 export type IntentResult = {
   intent: string;
@@ -113,6 +126,8 @@ export type IntentResult = {
     userPreferences?: Record<string, any>;
     recentTopics?: string[];
   };
+  requiredAgent?: AgentType;
+  interactionType?: InteractionType;
 };
 
 export interface FeedbackData {
@@ -137,6 +152,14 @@ export interface SafetyGuardrails {
   allowExplicitContent: boolean;
 }
 
+export interface ConnectionStatus {
+  isOnline: boolean;
+  lastChecked: Date;
+  latency?: number;
+  connectionType?: string;
+  retry?: number;
+}
+
 export interface BellaContextType {
   messages: Message[];
   isThinking: boolean;
@@ -148,6 +171,7 @@ export interface BellaContextType {
   offlineAgents: OfflineAgent[];
   activeProvider: AIProvider;
   integrations: Integrations;
+  connectionStatus: ConnectionStatus;
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
@@ -160,6 +184,8 @@ export interface BellaContextType {
   reportMessage: (messageId: string, reason: string) => void;
   updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
   updateSafetyGuardrails: (settings: Partial<SafetyGuardrails>) => void;
+  activateAgent: (agentType: AgentType, query?: string) => Promise<void>;
+  checkConnectionStatus: () => Promise<ConnectionStatus>;
   privacySettings: PrivacySettings;
   safetyGuardrails: SafetyGuardrails;
 }

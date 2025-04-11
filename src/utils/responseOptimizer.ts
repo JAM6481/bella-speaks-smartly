@@ -43,11 +43,17 @@ export const detectNetworkConditions = async (): Promise<{
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache' },
       signal: controller.signal
-    });
+    }).catch(() => null);
     clearTimeout(timeoutId);
     
-    const endTime = performance.now();
-    result.latency = endTime - startTime;
+    if (response) {
+      const endTime = performance.now();
+      result.latency = endTime - startTime;
+    } else {
+      // If fetch fails, assume high latency
+      result.latency = 2000;
+      result.isOfflineMode = true;
+    }
   } catch (error) {
     console.warn('Latency test failed, using estimate:', error);
     // Use a reasonable default based on connection type or a static fallback
@@ -210,4 +216,105 @@ export function createRetryableFunction<T, A extends any[]>(
     
     throw lastError;
   };
+}
+
+/**
+ * Creates a timeout wrapper for any promise
+ */
+export function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  errorMessage: string = 'Operation timed out'
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(errorMessage));
+    }, timeoutMs);
+    
+    promise
+      .then(result => {
+        clearTimeout(timeoutId);
+        resolve(result);
+      })
+      .catch(error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+/**
+ * Detects when app is in offline mode and returns a cached response if available
+ */
+export async function handleOfflineRequest<T>(
+  onlineFunction: () => Promise<T>,
+  offlineFallback: () => Promise<T>,
+  cacheKey: string,
+  ttlMs: number = 3600000 // Default 1 hour
+): Promise<T> {
+  const isOffline = !navigator.onLine;
+  
+  // If we're online, try the online function first
+  if (!isOffline) {
+    try {
+      const result = await withTimeout(onlineFunction(), 5000, 'Online request timed out');
+      // Cache the successful result
+      localStorage.setItem(`offline_cache_${cacheKey}`, JSON.stringify({
+        data: result,
+        timestamp: Date.now()
+      }));
+      return result;
+    } catch (error) {
+      console.warn('Online request failed, trying offline fallback:', error);
+      // Fall through to offline handling
+    }
+  }
+  
+  // Check for cached response
+  const cachedData = localStorage.getItem(`offline_cache_${cacheKey}`);
+  if (cachedData) {
+    try {
+      const parsed = JSON.parse(cachedData);
+      // Check if cache is still valid
+      if (Date.now() - parsed.timestamp < ttlMs) {
+        console.log('Using cached response for:', cacheKey);
+        return parsed.data as T;
+      }
+    } catch (error) {
+      console.warn('Error parsing cached data:', error);
+    }
+  }
+  
+  // If no valid cache, use the offline fallback
+  return offlineFallback();
+}
+
+/**
+ * Check if the network is actually working by testing a connection
+ */
+export async function checkActualConnectivity(
+  testUrl: string = 'https://www.google.com/favicon.ico',
+  timeoutMs: number = 5000
+): Promise<boolean> {
+  if (!navigator.onLine) {
+    return false;
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    const response = await fetch(testUrl, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return true;
+  } catch (error) {
+    console.warn('Connectivity check failed:', error);
+    return false;
+  }
 }

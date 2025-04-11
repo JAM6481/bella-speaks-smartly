@@ -6,6 +6,7 @@ import { synthesizeSpeech, cancelSpeech, preloadVoices, getVoiceById } from '@/u
 import { mockConnectIntegration, saveGoogleAPISettings, getGoogleAPISettings } from '@/utils/integrationUtils';
 import { getIntentBasedResponse } from '@/utils/responseGenerator';
 import { determineMood } from '@/utils/moodUtils';
+import { checkActualConnectivity, detectNetworkConditions } from '@/utils/responseOptimizer';
 import type { 
   Message, 
   UserPreference, 
@@ -19,7 +20,12 @@ import type {
   FeedbackData,
   PrivacySettings,
   SafetyGuardrails,
-  TTSOptions
+  TTSOptions,
+  AISettings,
+  AIProvider,
+  ConnectionStatus,
+  AIProviderSettings,
+  N8nSettings
 } from '@/types/bella';
 
 export type { IntegrationType } from '@/types/bella';
@@ -30,19 +36,20 @@ export interface BellaContextType {
   isTalking: boolean;
   mood: BellaMood;
   ttsOptions: TTSOptions;
-  aiSettings: any;
+  aiSettings: AISettings;
   googleAPISettings: any;
-  activeProvider: string;
+  activeProvider: AIProvider;
   integrations: Integrations;
   userPreferences: UserPreference[];
   offlineAgents: OfflineAgent[];
   activeAgent: AgentType;
+  connectionStatus: ConnectionStatus;
   sendMessage: (content: string) => Promise<void>;
   clearMessages: () => void;
   updateTTSOptions: (options: Partial<TTSOptions>) => void;
-  updateAISettings: (provider: string, settings: any) => void;
+  updateAISettings: (provider: AIProvider, settings: Partial<AIProviderSettings | N8nSettings>) => void;
   updateGoogleAPISettings: (settings: any) => void;
-  setActiveProvider: (provider: string) => void;
+  setActiveProvider: (provider: AIProvider) => void;
   connectIntegration: (type: IntegrationType) => Promise<boolean>;
   disconnectIntegration: (type: IntegrationType) => void;
   addUserPreference: (key: string, value: string | number | boolean) => void;
@@ -51,13 +58,15 @@ export interface BellaContextType {
   reportMessage: (messageId: string, reason: string) => void;
   updatePrivacySettings: (settings: Partial<PrivacySettings>) => void;
   updateSafetyGuardrails: (settings: Partial<SafetyGuardrails>) => void;
+  activateAgent: (agentType: AgentType, query?: string) => Promise<void>;
+  checkConnectionStatus: () => Promise<ConnectionStatus>;
   privacySettings: PrivacySettings;
   safetyGuardrails: SafetyGuardrails;
 }
 
 const BellaContext = createContext<BellaContextType | undefined>(undefined);
 
-const defaultAISettings = {
+const defaultAISettings: AISettings = {
   openai: {
     apiKey: '',
     selectedModel: 'gpt-4o-mini',
@@ -97,6 +106,14 @@ const defaultSafetyGuardrails: SafetyGuardrails = {
   allowExplicitContent: false
 };
 
+const defaultConnectionStatus: ConnectionStatus = {
+  isOnline: true,
+  lastChecked: new Date(),
+  latency: 0,
+  connectionType: 'unknown',
+  retry: 0
+};
+
 export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -122,19 +139,19 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadedAISettings = localStorage.getItem('bella_ai_settings');
   const parsedSettings = loadedAISettings ? JSON.parse(loadedAISettings) : {};
   
-  const initialAISettings = {
+  const initialAISettings: AISettings = {
     openai: { ...defaultAISettings.openai, ...(parsedSettings.openai || {}) },
     openRouter: { ...defaultAISettings.openRouter, ...(parsedSettings.openRouter || {}) },
     anthropic: { ...defaultAISettings.anthropic, ...(parsedSettings.anthropic || {}) },
     n8n: { ...defaultAISettings.n8n, ...(parsedSettings.n8n || {}) }
   };
   
-  const [aiSettings, setAISettings] = useState<any>(initialAISettings);
+  const [aiSettings, setAISettings] = useState<AISettings>(initialAISettings);
   
   const [googleAPISettings, setGoogleAPISettings] = useState<any>(getGoogleAPISettings());
   
   const savedProvider = localStorage.getItem('bella_active_provider');
-  const [activeProvider, setActiveProvider] = useState<string>(savedProvider || 'openRouter');
+  const [activeProvider, setActiveProvider] = useState<AIProvider>(savedProvider as AIProvider || 'openRouter');
   
   const [integrations, setIntegrations] = useState<Integrations>({
     googleCalendar: { 
@@ -169,8 +186,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [privacySettings, setPrivacySettings] = useState<PrivacySettings>(defaultPrivacySettings);
   const [safetyGuardrails, setSafetyGuardrails] = useState<SafetyGuardrails>(defaultSafetyGuardrails);
   
-  const [onlineServiceAvailable, setOnlineServiceAvailable] = useState(true);
-  const [onlineServiceAttempts, setOnlineServiceAttempts] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(defaultConnectionStatus);
   
   const [offlineAgents, setOfflineAgents] = useState<OfflineAgent[]>([
     {
@@ -183,7 +199,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAvailable: true,
       isEnabled: true,
       specialization: 'Business Strategy',
-      capabilities: ['Analysis', 'Planning', 'Optimization']
+      capabilities: ['Analysis', 'Planning', 'Optimization'],
+      promptTemplate: 'You are an expert business consultant specializing in {specialization}. The user needs help with: {query}'
     },
     {
       id: 'fullstack-developer',
@@ -195,7 +212,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAvailable: true,
       isEnabled: true,
       specialization: 'Web Development',
-      capabilities: ['Frontend', 'Backend', 'Database']
+      capabilities: ['Frontend', 'Backend', 'Database'],
+      promptTemplate: 'You are an expert developer specializing in {specialization}. Provide detailed, accurate code and explanations. The user needs help with: {query}'
     },
     {
       id: 'medical-advisor',
@@ -207,7 +225,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAvailable: true,
       isEnabled: true,
       specialization: 'Health & Wellness',
-      capabilities: ['Education', 'Guidance', 'Information']
+      capabilities: ['Education', 'Guidance', 'Information'],
+      promptTemplate: 'You are a medical information provider specializing in {specialization}. Provide accurate information but clearly state you are not a doctor and not providing medical advice. The user asks: {query}'
     },
     {
       id: 'finance-advisor',
@@ -219,7 +238,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAvailable: true,
       isEnabled: true,
       specialization: 'Personal Finance',
-      capabilities: ['Planning', 'Analysis', 'Guidance']
+      capabilities: ['Planning', 'Analysis', 'Guidance'],
+      promptTemplate: 'You are a financial information specialist in {specialization}. Provide educational information about finance but clearly state you are not providing personalized financial advice. The user asks: {query}'
     },
     {
       id: 'social-media-manager',
@@ -231,7 +251,21 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAvailable: true,
       isEnabled: true,
       specialization: 'Social Media',
-      capabilities: ['Strategy', 'Content Creation', 'Analytics']
+      capabilities: ['Strategy', 'Content Creation', 'Analytics'],
+      promptTemplate: 'You are a social media expert specializing in {specialization}. The user needs help with: {query}'
+    },
+    {
+      id: 'productivity-coach',
+      type: 'productivity',
+      name: 'Productivity Coach',
+      description: 'Time management, goal setting, and productivity systems',
+      expertise: ['Time management', 'Goal setting', 'Habit formation', 'Personal organization'],
+      icon: 'clock',
+      isAvailable: true,
+      isEnabled: true,
+      specialization: 'Personal Productivity',
+      capabilities: ['Planning', 'Systems', 'Organization'],
+      promptTemplate: 'You are a productivity expert specializing in {specialization}. The user needs help with: {query}'
     }
   ]);
   
@@ -245,24 +279,23 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   useEffect(() => {
     const checkServiceAvailability = async () => {
-      try {
-        const isAvailable = aiSettings.openRouter.apiKey !== '';
-        setOnlineServiceAvailable(isAvailable);
-        
-        if (isAvailable) {
-          setOnlineServiceAttempts(0);
-        }
-      } catch (error) {
-        console.error('Error checking service availability:', error);
-        setOnlineServiceAvailable(false);
-      }
+      const networkStatus = await detectNetworkConditions();
+      const realConnectivity = await checkActualConnectivity();
+      
+      setConnectionStatus({
+        isOnline: realConnectivity && !networkStatus.isOfflineMode,
+        lastChecked: new Date(),
+        latency: networkStatus.latency,
+        connectionType: networkStatus.connectionType || 'unknown',
+        retry: connectionStatus.retry
+      });
     };
     
     checkServiceAvailability();
-    const interval = setInterval(checkServiceAvailability, 30000);
+    const interval = setInterval(checkServiceAvailability, 60000);
     
     return () => clearInterval(interval);
-  }, [aiSettings]);
+  }, []);
   
   useEffect(() => {
     localStorage.setItem('bella_ai_settings', JSON.stringify(aiSettings));
@@ -291,6 +324,37 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     localStorage.setItem('bella_safety_guardrails', JSON.stringify(safetyGuardrails));
   }, [safetyGuardrails]);
+  
+  const checkConnectionStatus = useCallback(async (): Promise<ConnectionStatus> => {
+    try {
+      const networkStatus = await detectNetworkConditions();
+      const realConnectivity = await checkActualConnectivity();
+      
+      const newStatus = {
+        isOnline: realConnectivity && !networkStatus.isOfflineMode,
+        lastChecked: new Date(),
+        latency: networkStatus.latency,
+        connectionType: networkStatus.connectionType || 'unknown',
+        retry: connectionStatus.retry
+      };
+      
+      setConnectionStatus(newStatus);
+      return newStatus;
+    } catch (error) {
+      console.error('Error checking connection status:', error);
+      
+      const fallbackStatus = {
+        isOnline: navigator.onLine,
+        lastChecked: new Date(),
+        latency: 1000,
+        connectionType: 'unknown',
+        retry: connectionStatus.retry + 1
+      };
+      
+      setConnectionStatus(fallbackStatus);
+      return fallbackStatus;
+    }
+  }, [connectionStatus.retry]);
   
   const connectIntegration = useCallback(async (type: IntegrationType) => {
     try {
@@ -458,8 +522,43 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [toast]);
   
   const shouldUseOfflineMode = useCallback(() => {
-    return !onlineServiceAvailable || onlineServiceAttempts > 3;
-  }, [onlineServiceAvailable, onlineServiceAttempts]);
+    return !connectionStatus.isOnline || connectionStatus.retry > 3;
+  }, [connectionStatus]);
+  
+  const activateAgent = useCallback(async (agentType: AgentType, query?: string) => {
+    const agent = offlineAgents.find(agent => agent.type === agentType);
+    
+    if (!agent) {
+      toast({
+        title: "Agent not available",
+        description: `The ${agentType} agent is not available.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setActiveAgent(agentType);
+    
+    if (query) {
+      await sendMessage(query);
+    } else {
+      const agentIntroMessage: Message = {
+        id: uuidv4(),
+        content: `I'm now using the ${agent.name} to assist you. This agent specializes in ${agent.specialization}. How can I help you with ${agent.capabilities.join(', ')}?`,
+        isUser: false,
+        sender: 'agent',
+        agentType: agentType,
+        timestamp: new Date()
+      };
+      
+      setMessages(prev => [...prev, agentIntroMessage]);
+    }
+    
+    toast({
+      title: `${agent.name} activated`,
+      description: `You're now talking to the ${agent.name}.`,
+    });
+  }, [offlineAgents, toast]);
   
   const sendMessage = useCallback(async (content: string) => {
     const safetyCheck = filterMessageForSafety(content);
@@ -513,57 +612,180 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
     
+    await checkConnectionStatus();
     const useOfflineMode = shouldUseOfflineMode();
+    
     const currentProvider = useOfflineMode ? 'offline' : activeProvider;
     
     let responseContent = '';
+    let responseSender: 'bella' | 'agent' = 'bella';
+    let responseAgentType: AgentType | undefined = undefined;
     
     try {
-      if (currentProvider === 'openRouter' && aiSettings.openRouter.apiKey) {
-        const selectedModel = aiSettings.openRouter.selectedModel;
+      if (useSpecializedAgent) {
+        const agent = offlineAgents.find(a => a.type === requiredAgentType);
         
-        console.log(`Using OpenRouter with model: ${selectedModel}`);
-        const responseTime = 1000 + Math.random() * 2000;
-        await new Promise(resolve => setTimeout(resolve, responseTime));
-        
-        responseContent = getIntentBasedResponse(
-          intentResult as IntentResult, 
-          'openRouter', 
-          selectedModel
-        );
-        
-        setOnlineServiceAttempts(0);
-      } else if (currentProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
-        const selectedWorkflow = aiSettings.n8n.selectedWorkflow;
-        console.log(`Using n8n workflow: ${selectedWorkflow}`);
-        
-        const responseTime = 1000 + Math.random() * 2000;
-        await new Promise(resolve => setTimeout(resolve, responseTime));
-        
-        responseContent = getIntentBasedResponse(
-          intentResult as IntentResult, 
-          'n8n', 
-          aiSettings.n8n.selectedWorkflow || ''
-        );
-        
-        setOnlineServiceAttempts(0);
-      } else {
-        console.log('Using offline mode with built-in response generator');
-        
-        if (!useOfflineMode) {
-          setOnlineServiceAttempts(prev => prev + 1);
+        if (agent) {
+          responseAgentType = agent.type;
+          responseSender = 'agent';
+          
+          const agentPrompt = agent.promptTemplate
+            ?.replace('{specialization}', agent.specialization)
+            .replace('{query}', content) || '';
+          
+          if (!useOfflineMode && aiSettings[activeProvider] && 
+              (activeProvider === 'openRouter' ? aiSettings.openRouter.apiKey : true)) {
+            
+            console.log(`Using ${activeProvider} for ${agent.name} agent response`);
+            
+            const responseTime = 1000 + (content.length * 15) + Math.random() * 2000;
+            await new Promise(resolve => setTimeout(resolve, responseTime));
+            
+            switch (agent.type) {
+              case 'business':
+                responseContent = `As a Business Consultant specialized in ${agent.specialization}, I can help with your question about ${content.substring(0, 30)}... 
+                
+                Based on my analysis, here are some key points to consider:
+                
+                1. Market positioning is essential for ${content.includes('startup') ? 'your startup' : 'your business'}
+                2. Consider your competitive advantage in terms of ${content.includes('price') ? 'pricing strategy' : 'unique value proposition'}
+                3. Developing a clear ${content.includes('plan') ? 'business plan' : 'strategy'} will help guide your decisions
+                
+                Would you like me to elaborate on any specific aspect of this advice?`;
+                break;
+              
+              case 'coding':
+                responseContent = `As a Full Stack Developer with expertise in ${agent.specialization}, I can assist with your coding question.
+                
+                ${content.includes('React') ? 'For React applications, consider these best practices:' : 'Here are some development best practices to consider:'}
+                
+                1. ${content.includes('performance') ? 'Optimize rendering with useMemo and useCallback hooks' : 'Structure your components for maximum reusability'}
+                2. ${content.includes('API') ? 'Implement proper error handling for API requests' : 'Use TypeScript for better type safety and developer experience'}
+                3. ${content.includes('state') ? 'Consider using a state management solution like Redux or Context API' : 'Write unit tests for critical functionality'}
+                
+                Would you like me to provide some code examples or explain any concept in more detail?`;
+                break;
+              
+              case 'medical':
+                responseContent = `As a Medical Information Provider focused on ${agent.specialization}, I can share some general health information. Note that I'm not a doctor and this isn't medical advice.
+                
+                ${content.includes('diet') ? 'Regarding nutrition and diet:' : 'Regarding general wellness:'}
+                
+                1. ${content.includes('sleep') ? 'Quality sleep is crucial for overall health and immune function' : 'Regular physical activity offers numerous health benefits'}
+                2. ${content.includes('stress') ? 'Stress management techniques like meditation can be beneficial' : 'Staying hydrated is important for many bodily functions'}
+                3. ${content.includes('vitamin') ? 'A balanced diet rich in nutrients is preferable to supplements in most cases' : 'Preventive health screenings are important based on age and risk factors'}
+                
+                For personalized health advice, please consult with a qualified healthcare professional.`;
+                break;
+                
+              case 'finance':
+                responseContent = `As a Financial Information Specialist in ${agent.specialization}, I can provide some general guidance. Note that this is educational information, not personalized financial advice.
+                
+                ${content.includes('invest') ? 'Regarding investments:' : 'Regarding personal finance:'}
+                
+                1. ${content.includes('budget') ? 'Creating a detailed budget is the foundation of financial health' : 'Emergency funds typically cover 3-6 months of essential expenses'}
+                2. ${content.includes('debt') ? 'Prioritizing high-interest debt typically saves more money long-term' : 'Diversification is a key principle in investment risk management'}
+                3. ${content.includes('retire') ? 'Retirement planning benefits from starting early due to compound growth' : 'Tax-advantaged accounts often provide benefits for long-term financial goals'}
+                
+                For personalized financial advice, consider consulting with a certified financial planner.`;
+                break;
+                
+              default:
+                responseContent = `As a specialized agent in ${agent.specialization}, I can help you with your question about ${content.substring(0, 30)}...
+                
+                Here are some key insights related to your query:
+                
+                1. ${agent.expertise && agent.expertise[0] ? agent.expertise[0] + ' is an important consideration' : 'Consider the specific goals you want to achieve'}
+                2. ${agent.expertise && agent.expertise[1] ? 'Applying ' + agent.expertise[1] + ' techniques could be beneficial' : 'Analyze the current situation thoroughly'}
+                3. ${agent.expertise && agent.expertise[2] ? agent.expertise[2] + ' strategies can be effective here' : 'Develop a plan with measurable outcomes'}
+                
+                Would you like me to elaborate on any of these points or provide more specific information?`;
+            }
+            
+            setConnectionStatus(prev => ({
+              ...prev,
+              retry: 0
+            }));
+          } else {
+            console.log('Using offline mode for agent response');
+            
+            const baseTime = 800;
+            const wordCount = content.split(/\s+/).length;
+            const complexityFactor = Math.min(wordCount / 5, 3);
+            const responseTime = baseTime + (complexityFactor * 300) + (Math.random() * 500);
+            
+            await new Promise(resolve => setTimeout(resolve, responseTime));
+            
+            responseContent = `As your ${agent.name} specialized in ${agent.specialization}, I'll do my best to help with your question about ${content.substring(0, 30)}...
+            
+            Here are some insights based on my expertise in ${agent.capabilities.join(', ')}:
+            
+            1. ${agent.expertise && agent.expertise[0] ? agent.expertise[0] + ' is a key consideration here' : 'First, consider your specific goals and constraints'}
+            2. ${agent.expertise && agent.expertise[1] ? 'Applying ' + agent.expertise[1] + ' principles could help' : 'Analyze the current situation methodically'}
+            3. ${agent.expertise && agent.expertise[2] ? agent.expertise[2] + ' strategies often work well' : 'Develop a structured approach with clear milestones'}
+            
+            ${!useOfflineMode ? "Note: I'm currently working in offline mode. When you connect to an online AI model, I can provide more detailed and personalized responses." : "Would you like me to elaborate on any of these points?"}`;
+          }
+        } else {
+          responseContent = `I noticed you might need help with ${requiredAgentType}, but I don't have a specialized agent for that yet. I'll do my best to assist with your question about ${content.substring(0, 30)}...`;
+          responseSender = 'bella';
         }
-        
-        const baseTime = 1000;
-        const wordCount = content.split(/\s+/).length;
-        const complexityFactor = Math.min(wordCount / 5, 3);
-        const responseTime = baseTime + (complexityFactor * 500) + (Math.random() * 1000);
-        
-        await new Promise(resolve => setTimeout(resolve, responseTime));
-        responseContent = getIntentBasedResponse(intentResult as IntentResult, 'offline', 'bella-default');
-        
-        if (!useOfflineMode) {
-          responseContent += "\n\n*Note: I'm currently using offline mode because there seems to be an issue with the online service. This may limit some of my capabilities. Please check your connection or try again later.*";
+      } else {
+        if (currentProvider === 'openRouter' && aiSettings.openRouter.apiKey) {
+          const selectedModel = aiSettings.openRouter.selectedModel;
+          
+          console.log(`Using OpenRouter with model: ${selectedModel}`);
+          const responseTime = 1000 + Math.random() * 2000;
+          await new Promise(resolve => setTimeout(resolve, responseTime));
+          
+          responseContent = getIntentBasedResponse(
+            intentResult as IntentResult, 
+            'openRouter', 
+            selectedModel
+          );
+          
+          setConnectionStatus(prev => ({
+            ...prev,
+            retry: 0
+          }));
+        } else if (currentProvider === 'n8n' && aiSettings.n8n.webhookUrl) {
+          const selectedWorkflow = aiSettings.n8n.selectedWorkflow;
+          console.log(`Using n8n workflow: ${selectedWorkflow}`);
+          
+          const responseTime = 1000 + Math.random() * 2000;
+          await new Promise(resolve => setTimeout(resolve, responseTime));
+          
+          responseContent = getIntentBasedResponse(
+            intentResult as IntentResult, 
+            'n8n', 
+            aiSettings.n8n.selectedWorkflow || ''
+          );
+          
+          setConnectionStatus(prev => ({
+            ...prev,
+            retry: 0
+          }));
+        } else {
+          console.log('Using offline mode with built-in response generator');
+          
+          if (!useOfflineMode) {
+            setConnectionStatus(prev => ({
+              ...prev,
+              retry: prev.retry + 1
+            }));
+          }
+          
+          const baseTime = 1000;
+          const wordCount = content.split(/\s+/).length;
+          const complexityFactor = Math.min(wordCount / 5, 3);
+          const responseTime = baseTime + (complexityFactor * 500) + (Math.random() * 1000);
+          
+          await new Promise(resolve => setTimeout(resolve, responseTime));
+          responseContent = getIntentBasedResponse(intentResult as IntentResult, 'offline', 'bella-default');
+          
+          if (!useOfflineMode) {
+            responseContent += "\n\n*Note: I'm currently using offline mode because there seems to be an issue with the online service. This may limit some of my capabilities. Please check your connection or API settings and try again later.*";
+          }
         }
       }
       
@@ -581,7 +803,10 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Error generating response:', error);
       responseContent = "I'm sorry, I encountered an error processing your request. Please try again later.";
       
-      setOnlineServiceAttempts(prev => prev + 1);
+      setConnectionStatus(prev => ({
+        ...prev,
+        retry: prev.retry + 1
+      }));
       
       toast({
         title: "Error",
@@ -596,7 +821,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id: uuidv4(),
         content: responseContent,
         isUser: false,
-        sender: 'bella',
+        sender: responseSender,
+        agentType: responseAgentType,
         timestamp: new Date()
       };
       
@@ -624,10 +850,10 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addUserPreference, 
     activeAgent, 
     offlineAgents, 
-    onlineServiceAvailable, 
-    onlineServiceAttempts, 
     shouldUseOfflineMode, 
-    filterMessageForSafety
+    filterMessageForSafety, 
+    connectionStatus,
+    checkConnectionStatus
   ]);
   
   const clearMessages = useCallback(() => {
@@ -654,7 +880,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
   }, []);
   
-  const updateAISettings = useCallback((provider: string, settings: any) => {
+  const updateAISettings = useCallback((provider: AIProvider, settings: Partial<AIProviderSettings | N8nSettings>) => {
     setAISettings(prev => ({
       ...prev,
       [provider]: {
@@ -680,7 +906,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   }, [googleAPISettings, toast]);
   
-  const setActiveProviderWithStorage = useCallback((provider: string) => {
+  const setActiveProviderWithStorage = useCallback((provider: AIProvider) => {
     setActiveProvider(provider);
     localStorage.setItem('bella_active_provider', provider);
   }, []);
@@ -699,6 +925,7 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       userPreferences,
       offlineAgents,
       activeAgent,
+      connectionStatus,
       sendMessage,
       clearMessages,
       updateTTSOptions,
@@ -713,6 +940,8 @@ export const BellaProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       reportMessage,
       updatePrivacySettings,
       updateSafetyGuardrails,
+      activateAgent,
+      checkConnectionStatus,
       privacySettings,
       safetyGuardrails
     }}>
