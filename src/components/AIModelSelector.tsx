@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -31,11 +30,11 @@ const AIModelSelector = () => {
     
     if (provider === 'n8n') {
       // n8n uses selectedWorkflow instead of selectedModel
-      selectedModel = aiSettings.n8n.selectedWorkflow || models[0]?.id || '';
+      selectedModel = aiSettings.n8n?.selectedWorkflow as string || models[0]?.id || '';
     } else {
       // For other providers that use selectedModel property
       selectedModel = 'selectedModel' in providerSettings 
-        ? providerSettings.selectedModel 
+        ? (providerSettings.selectedModel as string)  // Type assertion here fixes the error
         : (models[0]?.id || '');
     }
     
@@ -91,7 +90,7 @@ const AIModelSelector = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue={activeProvider} onValueChange={(v: any) => setActiveProvider(v)}>
+        <Tabs defaultValue={activeProvider} onValueChange={(v) => setActiveProvider(v as AIProvider)}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="openai">OpenAI</TabsTrigger>
             <TabsTrigger value="anthropic">Anthropic</TabsTrigger>
